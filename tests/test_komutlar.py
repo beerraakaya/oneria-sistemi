@@ -129,3 +129,11 @@ def test_kor_test_komsu_yontemi_modele_sormaz(ayar_dosyasi, ayarlar, sahte_ollam
     assert ozet["Test edilen öneri"] == 2
     tablo = list(kitap["Karşılaştırma"].iter_rows(values_only=True))
     assert all(satir[14].startswith("Benzer ") for satir in tablo[1:])
+
+
+def test_kor_test_karma_yontemi(ayar_dosyasi, ayarlar, sahte_ollama):
+    assert main(["--ayarlar", str(ayar_dosyasi), "kor-test", "--yontem", "karma"]) == 0
+    assert len(sahte_ollama.sohbetler()) == 2
+    rapor = next(ayarlar.veri_klasoru.glob("kor_test_karma_*.xlsx"))
+    ozet = {s[0]: s[1] for s in openpyxl.load_workbook(rapor)["Özet"].iter_rows(values_only=True)}
+    assert ozet["Karar yöntemi"].startswith("karma:")

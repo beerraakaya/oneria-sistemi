@@ -12,7 +12,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from .ayarlar import Ayarlar
-from .degerlendirici import Degerlendirici, KomsuDegerlendirici, Taslak
+from .degerlendirici import Degerlendirici, KarmaDegerlendirici, KomsuDegerlendirici, Taslak
 from .excel import ONERI, ONERI_DEGIL, Oneri
 from .ollama import GecersizCevap, OllamaHatasi
 
@@ -40,7 +40,7 @@ class Ozet:
 
 
 def kor_test_calistir(
-    degerlendirici: Degerlendirici | KomsuDegerlendirici,
+    degerlendirici: Degerlendirici | KomsuDegerlendirici | KarmaDegerlendirici,
     oneriler: list[Oneri],
     ilerleme: Callable[[str], None] = print,
 ) -> list[Sonuc]:
@@ -121,9 +121,11 @@ def _ozet_sayfasi(sayfa, ozet: Ozet, ayarlar: Ayarlar, yontem: str) -> None:
         ("Tarih", datetime.now().strftime("%d.%m.%Y %H:%M")),
         (
             "Karar yöntemi",
-            f"benzer {ayarlar.komsu_sayisi} önerinin çoğunluk kararı (model kullanılmadı)"
-            if yontem == "komsu"
-            else f"dil modeli: {ayarlar.dil_modeli}",
+            {
+                "komsu": f"benzer {ayarlar.komsu_sayisi} önerinin çoğunluk kararı (model kullanılmadı)",
+                "karma": f"karma: benzer {ayarlar.komsu_sayisi} önerinin en az {ayarlar.karma_esigi}'i"
+                f" aynıysa onların kararı, değilse {ayarlar.dil_modeli}",
+            }.get(yontem, f"dil modeli: {ayarlar.dil_modeli}"),
         ),
         ("Gömme modeli", ayarlar.gomme_modeli),
         ("", ""),

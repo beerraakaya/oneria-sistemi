@@ -35,6 +35,17 @@ python -m oneri kor-test             # yeni tarzdaki tüm önerilerle kör test
 python -m oneri degerlendir 567      # tek bir satır için taslak; Excel'e yazmaz
 ```
 
+Kör testte kararın nasıl verileceği `--yontem` ile seçilir:
+
+- `model` (varsayılan): kararı dil modeli verir.
+- `komsu`: modele sormadan, en benzer 7 geçmiş önerinin çoğunluk kararı. Birkaç saniyede biter; karşılaştırma ölçütüdür, metin yazmaz.
+- `karma`: benzer 7 önerinin en az 5'i aynı kararı gösteriyorsa karar onlardan alınır ve model sadece gerekçeyi ve metni yazar; benzer öneriler bölünmüşse kararı model verir.
+
+```
+python -m oneri kor-test --yontem komsu
+python -m oneri kor-test --yontem karma
+```
+
 Kör test raporu `veri\kor_test_<tarih>.xlsx` dosyasına yazılır:
 
 - **Özet** sayfası: yapay zekâ kaç öneride ekiple aynı kararı verdi.

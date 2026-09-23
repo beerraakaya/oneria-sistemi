@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .ayarlar import Ayarlar, ayarlari_yukle
-from .degerlendirici import KomsuDegerlendirici
+from .degerlendirici import KarmaDegerlendirici, KomsuDegerlendirici
 from .excel import ExcelHatasi
 from .hafiza import ornek_alinabilir_mi, ozgun_satirlar
 from .kor_test import kor_test_calistir, ozetle, rapor_yaz
@@ -65,6 +65,11 @@ def kor_test(ayarlar: Ayarlar, args) -> int:
                 f"{len(test)} öneri, benzer {ayarlar.komsu_sayisi} önerinin"
                 " çoğunluk kararıyla değerlendirilecek.\n"
             )
+        elif args.yontem == "karma":
+            degerlendirici = KarmaDegerlendirici(
+                asistan.hafiza, asistan.degerlendirici, ayarlar.komsu_sayisi, ayarlar.karma_esigi
+            )
+            print(f"{len(test)} öneri karma yöntemle değerlendirilecek. Model: {ayarlar.dil_modeli}\n")
         else:
             degerlendirici = asistan.degerlendirici
             print(f"{len(test)} öneri değerlendirilecek. Model: {ayarlar.dil_modeli}\n")
@@ -122,9 +127,12 @@ def main(argv: list[str] | None = None) -> int:
     kor.add_argument("--adet", type=int, help="sadece en yeni N öneriyle dene")
     kor.add_argument(
         "--yontem",
-        choices=["model", "komsu"],
+        choices=["model", "komsu", "karma"],
         default="model",
-        help="model: dil modeli karar verir; komsu: benzer önerilerin çoğunluk kararı (karşılaştırma için)",
+        help=(
+            "model: dil modeli karar verir; komsu: benzer önerilerin çoğunluk kararı;"
+            " karma: benzer öneriler güçlü şekilde aynıysa onların kararı, değilse model"
+        ),
     )
     tek = komutlar.add_parser("degerlendir", help="tek bir Excel satırı için taslak üretir")
     tek.add_argument("satir", type=int, help="Excel'deki satır numarası")

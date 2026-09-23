@@ -14,15 +14,22 @@ GEREKCELER = {
     "Politika/sosyal hak talebi": ONERI_DEGIL,
 }
 
-# Alan sırası önemli: model önce gerekçeyi seçer, sonra metni yazar.
-CEVAP_SEMASI = {
-    "type": "object",
-    "properties": {
-        "gerekce": {"type": "string", "enum": list(GEREKCELER)},
-        "degerlendirme": {"type": "string"},
-    },
-    "required": ["gerekce", "degerlendirme"],
-}
+
+def cevap_semasi(sabit_onay: str | None = None) -> dict:
+    """Karar önceden verildiyse model yalnızca o karara uyan gerekçelerden seçebilir.
+
+    Alan sırası önemli: model önce gerekçeyi seçer, sonra metni yazar.
+    """
+    gerekceler = [g for g, onay in GEREKCELER.items() if sabit_onay in (None, onay)]
+    return {
+        "type": "object",
+        "properties": {
+            "gerekce": {"type": "string", "enum": gerekceler},
+            "degerlendirme": {"type": "string"},
+        },
+        "required": ["gerekce", "degerlendirme"],
+    }
+
 
 _SISTEM = f"""Sen bir fabrikanın öneri sistemi ekibine yardım eden bir asistansın. Çalışanların gönderdiği iyileştirme önerileri için taslak değerlendirme yazarsın; son kararı ekip verir.
 
@@ -44,7 +51,12 @@ def sistem_mesaji(kurallar: str) -> str:
     return _SISTEM + kurallar.strip()
 
 
-def kullanici_mesaji(yeni: Oneri, karar_ornekleri: list[Ornek], tarz_ornekleri: list[Ornek]) -> str:
+def kullanici_mesaji(
+    yeni: Oneri,
+    karar_ornekleri: list[Ornek],
+    tarz_ornekleri: list[Ornek],
+    sabit_onay: str | None = None,
+) -> str:
     """Örnekler en benzerden başlayarak verilmeli; en benzer olan yeni önerinin hemen üstüne gelir."""
     parcalar = ["BENZER GEÇMİŞ ÖNERİLER VE EKİBİN KARARLARI", ""]
     parcalar += _ornek_bloklari(karar_ornekleri)
@@ -54,8 +66,13 @@ def kullanici_mesaji(yeni: Oneri, karar_ornekleri: list[Ornek], tarz_ornekleri: 
         "YENİ ÖNERİ",
         _oneri_blogu(yeni),
         "",
-        "Bu öneri için gerekçeni ve değerlendirme metnini JSON olarak ver.",
     ]
+    if sabit_onay:
+        parcalar.append(
+            f'Ekibin benzer önerilerdeki kararlarına göre bu önerinin kararı "{sabit_onay}" olarak '
+            "belirlendi. Bu karara uyan gerekçeyi seç ve metni buna göre yaz."
+        )
+    parcalar.append("Bu öneri için gerekçeni ve değerlendirme metnini JSON olarak ver.")
     return "\n".join(parcalar)
 
 

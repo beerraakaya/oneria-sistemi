@@ -22,5 +22,6 @@ gomme_modeli = 'bge-m3'
 # karar_ornegi_sayisi = 6
 # tarz_ornegi_sayisi = 4
 # komsu_sayisi = 7
+# karma_esigi = 5
 # en_kisa_degerlendirme = 40
 # kalip_tekrar_esigi = 3

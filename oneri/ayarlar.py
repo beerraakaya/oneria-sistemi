@@ -31,6 +31,8 @@ class Ayarlar:
     tarz_ornegi_sayisi: int = 4
     # 'kor-test --yontem komsu' için oylamaya katılan benzer öneri sayısı (tek sayı olmalı).
     komsu_sayisi: int = 7
+    # Karma yöntemde: benzer önerilerden en az bu kadarı aynı kararı gösteriyorsa karar onlardan alınır.
+    karma_esigi: int = 5
     # Bundan kısa değerlendirmeler ("deneme" gibi test kayıtları) örnek alınmaz.
     en_kisa_degerlendirme: int = 40
     # İlk cümlesi bu kadar kayıtta aynen geçen metin eski kalıp metin sayılır.

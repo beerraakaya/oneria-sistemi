@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from .ayarlar import Ayarlar
 from .excel import BASLANGIC_DURUMU, Oneri
 from .hafiza import Hafiza
-from .istem import CEVAP_SEMASI, GEREKCELER, kullanici_mesaji, sistem_mesaji
+from .istem import GEREKCELER, cevap_semasi, kullanici_mesaji, sistem_mesaji
 from .ollama import GecersizCevap, Ollama
 
 
@@ -27,8 +27,13 @@ class Degerlendirici:
         self._ayarlar = ayarlar
         self._sistem = sistem_mesaji(kurallar)
 
-    def degerlendir(self, oneri: Oneri, haric_satir: int | None = None) -> Taslak:
-        """`haric_satir` verilirse o satır örnek olarak gösterilmez (kör test için)."""
+    def degerlendir(
+        self, oneri: Oneri, haric_satir: int | None = None, sabit_onay: str | None = None
+    ) -> Taslak:
+        """`haric_satir` verilirse o satır örnek olarak gösterilmez (kör test için).
+
+        `sabit_onay` verilirse karar değişmez; model yalnızca gerekçeyi ve metni yazar.
+        """
         tarz = self._hafiza.benzerler(
             oneri, self._ayarlar.tarz_ornegi_sayisi, sadece_ozgun=True, haric_satir=haric_satir
         )
@@ -43,9 +48,10 @@ class Degerlendirici:
 
         mesajlar = [
             {"role": "system", "content": self._sistem},
-            {"role": "user", "content": kullanici_mesaji(oneri, karar, tarz)},
+            {"role": "user", "content": kullanici_mesaji(oneri, karar, tarz, sabit_onay)},
         ]
-        cevap = self._sor(mesajlar)
+        sema = cevap_semasi(sabit_onay)
+        cevap = self._sor(mesajlar, sema)
         uygunsuz = uygunsuz_ifadeler(cevap["degerlendirme"])
         if uygunsuz:
             # Bir kez düzelttirilir; yine kullanırsa taslak hiç kabul edilmez.
@@ -53,7 +59,7 @@ class Degerlendirici:
                 {"role": "assistant", "content": json.dumps(cevap, ensure_ascii=False)},
                 {"role": "user", "content": _duzeltme_istegi(uygunsuz)},
             ]
-            cevap = self._sor(mesajlar)
+            cevap = self._sor(mesajlar, sema)
             uygunsuz = uygunsuz_ifadeler(cevap["degerlendirme"])
             if uygunsuz:
                 raise GecersizCevap(
@@ -62,11 +68,11 @@ class Degerlendirici:
         onay = GEREKCELER[cevap["gerekce"]]
         return Taslak(onay, BASLANGIC_DURUMU[onay], cevap["degerlendirme"], cevap["gerekce"])
 
-    def _sor(self, mesajlar: list[dict]) -> dict:
+    def _sor(self, mesajlar: list[dict], sema: dict) -> dict:
         cevap = self._ollama.json_sohbet(
             self._ayarlar.dil_modeli,
             mesajlar,
-            CEVAP_SEMASI,
+            sema,
             {
                 "temperature": self._ayarlar.sicaklik,
                 "seed": self._ayarlar.tohum,
@@ -75,7 +81,7 @@ class Degerlendirici:
         )
         gerekce = cevap.get("gerekce")
         metin = str(cevap.get("degerlendirme") or "").strip()
-        if gerekce not in GEREKCELER or not metin:
+        if gerekce not in sema["properties"]["gerekce"]["enum"] or not metin:
             raise GecersizCevap(f"Modelin cevabı beklenen biçimde değil: {cevap}")
         return {"gerekce": gerekce, "degerlendirme": metin}
 
@@ -94,6 +100,31 @@ class KomsuDegerlendirici:
         komsular = self._hafiza.benzerler(oneri, self._adet, haric_satir=haric_satir)
         onay, oy = Counter(k.oneri.onay_durumu for k in komsular).most_common(1)[0]
         return Taslak(onay, BASLANGIC_DURUMU[onay], "", f"Benzer {len(komsular)} önerinin {oy}'i {onay}")
+
+
+class KarmaDegerlendirici:
+    """Benzer öneriler güçlü şekilde aynı kararı gösteriyorsa kararı onlar verir, model metni yazar.
+
+    Benzer öneriler bölünmüşse kararı model kurallara bakarak verir.
+    """
+
+    def __init__(self, hafiza: Hafiza, degerlendirici: Degerlendirici, adet: int, esik: int):
+        self._hafiza = hafiza
+        self._degerlendirici = degerlendirici
+        self._adet = adet
+        self._esik = esik
+
+    def degerlendir(self, oneri: Oneri, haric_satir: int | None = None) -> Taslak:
+        komsular = self._hafiza.benzerler(oneri, self._adet, haric_satir=haric_satir)
+        onay, oy = Counter(k.oneri.onay_durumu for k in komsular).most_common(1)[0]
+        if oy >= self._esik:
+            taslak = self._degerlendirici.degerlendir(oneri, haric_satir, sabit_onay=onay)
+            kaynak = f"benzer öneriler {oy}/{len(komsular)}"
+        else:
+            taslak = self._degerlendirici.degerlendir(oneri, haric_satir)
+            kaynak = f"model (benzer öneriler bölünmüş: {oy}/{len(komsular)})"
+        gerekce = f"{taslak.gerekce} - karar: {kaynak}"
+        return Taslak(taslak.onay_durumu, taslak.durum, taslak.degerlendirme, gerekce)
 
 
 # Değerlendirmede kullanılmayacak ifadeler ve yerine kullanılacaklar.

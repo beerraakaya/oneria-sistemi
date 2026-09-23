@@ -1,6 +1,6 @@
 import pytest
 
-from oneri.degerlendirici import uygunsuz_ifadeler
+from oneri.degerlendirici import KarmaDegerlendirici, uygunsuz_ifadeler
 from oneri.istem import GEREKCELER
 from oneri.ollama import GecersizCevap, Ollama
 from oneri.uygulama import asistani_kur
@@ -111,3 +111,33 @@ def test_eski_kalip_metinler_istemde_gosterilmez(asistan, sahte_ollama):
 def test_her_gerekce_bir_onay_durumuna_karsilik_gelir():
     assert GEREKCELER["Geçerli öneri"] == "Öneri"
     assert {onay for ad, onay in GEREKCELER.items() if ad != "Geçerli öneri"} == {"Öneri Değil"}
+
+
+def test_karma_benzerler_guclu_ayniysa_karari_onlar_verir(asistan, sahte_ollama):
+    # 9. satıra en benzer 5 örneğin 4'ü "Öneri"; eşik 4 -> karar sabitlenir.
+    karma = KarmaDegerlendirici(asistan.hafiza, asistan.degerlendirici, adet=5, esik=4)
+    taslak = karma.degerlendir(_oneri(asistan, 9))
+
+    sohbet = sahte_ollama.sohbetler()[-1]
+    assert sohbet["format"]["properties"]["gerekce"]["enum"] == ["Geçerli öneri"]
+    assert 'kararı "Öneri" olarak belirlendi' in sohbet["messages"][1]["content"]
+    assert taslak.onay_durumu == "Öneri"
+    assert taslak.gerekce == "Geçerli öneri - karar: benzer öneriler 4/5"
+
+
+def test_karma_benzerler_bolunmusse_karari_model_verir(asistan, sahte_ollama):
+    sahte_ollama.sohbet_cevabi = {"gerekce": "Rutin iş", "degerlendirme": "Rutin bakım işidir."}
+    karma = KarmaDegerlendirici(asistan.hafiza, asistan.degerlendirici, adet=5, esik=5)
+    taslak = karma.degerlendir(_oneri(asistan, 9))
+
+    sohbet = sahte_ollama.sohbetler()[-1]
+    assert sohbet["format"]["properties"]["gerekce"]["enum"] == list(GEREKCELER)
+    assert "olarak belirlendi" not in sohbet["messages"][1]["content"]
+    assert taslak.onay_durumu == "Öneri Değil"
+    assert taslak.gerekce == "Rutin iş - karar: model (benzer öneriler bölünmüş: 4/5)"
+
+
+def test_sabit_karara_uymayan_gerekce_reddedilir(asistan, sahte_ollama):
+    sahte_ollama.sohbet_cevabi = {"gerekce": "Rutin iş", "degerlendirme": "Rutin bakım işidir."}
+    with pytest.raises(GecersizCevap):
+        asistan.degerlendirici.degerlendir(_oneri(asistan, 9), sabit_onay="Öneri")
