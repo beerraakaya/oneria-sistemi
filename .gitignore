@@ -3,11 +3,18 @@ __pycache__/
 *.py[cod]
 *$py.class
 venv/
+.venv/
 env/
+.pytest_cache/
 
 # Veritabanı ve Çıktılar
 chroma_db/
+veri/
+*.db
 
 # Excel ve Veri Dosyaları
 *.xlsx
 *.csv
+
+# Yerel ayarlar (bilgisayara özel yollar)
+ayarlar.toml

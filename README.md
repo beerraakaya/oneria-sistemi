@@ -1,0 +1,75 @@
+# Öneri Sistemi Yapay Zekâ Asistanı
+
+Öneri Excel'ine düşen önerilerin **Değerlendirme**, **Onay Durumu** ve **Durum** sütunlarını, ekibin geçmiş değerlendirmelerinden öğrenerek taslak olarak dolduran asistan. Son karar her zaman ekibindir.
+
+Yapay zekâ modeli (Ollama ile Qwen) şirket bilgisayarında çalışır; öneri metinleri hiçbir dış yapay zekâ servisine gönderilmez.
+
+## Şu anki aşama: kör test
+
+Asistan henüz Excel'e yazmıyor. Önce ne kadar isabetli olduğunu ölçüyoruz: ekibin yeni tarzda değerlendirdiği öneriler, cevapları gizlenerek yapay zekâya yeniden değerlendirtilir ve iki cevap bir Excel raporunda yan yana konur.
+
+## Kurulum (Windows)
+
+1. **Python 3.11 veya üstü:** python.org'dan kurun. Kurarken "Add Python to PATH" kutusunu işaretleyin.
+2. **Ollama:** ollama.com'dan kurun, sonra komut satırında modelleri indirin:
+   ```
+   ollama pull qwen2.5
+   ollama pull bge-m3
+   ```
+   `qwen2.5` 7B boyutundadır. Bilgisayarın belleği yetiyorsa `qwen2.5:14b` Türkçede daha iyi sonuç verir; o zaman ayarlarda `dil_modeli` olarak onu yazın.
+3. **Kütüphaneler:** proje klasöründe:
+   ```
+   python -m pip install -r requirements.txt
+   ```
+4. **Excel kopyası:** öneri Excel'inin bir kopyasını proje klasöründe `veri\oneri.xlsx` olarak kaydedin. `veri` klasörü git'e gönderilmez.
+5. **Ayarlar (isteğe bağlı):** model adı ya da Excel'in yeri farklıysa `ayarlar.ornek.toml` dosyasını `ayarlar.toml` adıyla kopyalayıp düzenleyin.
+
+## Kullanım
+
+Komutları proje klasöründe çalıştırın:
+
+```
+python -m oneri kontrol              # Excel, kurallar ve modeller hazır mı?
+python -m oneri kor-test --adet 3    # önce en yeni 3 öneriyle hızlı deneme
+python -m oneri kor-test             # yeni tarzdaki tüm önerilerle kör test
+python -m oneri degerlendir 567      # tek bir satır için taslak; Excel'e yazmaz
+```
+
+Kör test raporu `veri\kor_test_<tarih>.xlsx` dosyasına yazılır:
+
+- **Özet** sayfası: yapay zekâ kaç öneride ekiple aynı kararı verdi.
+- **Karşılaştırma** sayfası: her öneri için ekibin ve yapay zekânın cevabı yan yana. "Metin Puanı" sütununa 1–5 arası puan vererek metinlerin kalitesini de ölçebilirsiniz.
+
+Ekran kartı olmayan bir bilgisayarda her öneri birkaç dakika sürebilir. Test Ctrl+C ile yarıda durdurulursa o ana kadarki sonuçlar yine rapora yazılır.
+
+## Nasıl çalışır?
+
+1. Excel'den yalnızca **Denizli** satırları okunur; Tuzla satırlarına dokunulmaz. Kişi adı sütunları hiç okunmaz.
+2. Kararı ve değerlendirmesi olan öneriler **kurumsal hafızayı** oluşturur. "deneme" gibi 40 karakterden kısa değerlendirmeler test kaydı sayılıp dışarıda bırakılır.
+3. Hafızadaki metinler ikiye ayrılır: ilk cümlesi en az 3 kayıtta aynen geçenler **eski kalıp** metinlerdir, diğerleri **yeni tarzdır**.
+4. Yeni bir öneri geldiğinde `bge-m3` ile anlamca en benzer eski öneriler bulunur:
+   - **karar için** tüm hafızadan en benzer 6 öneri ve ekibin verdiği kararlar,
+   - **yazım tarzı için** yeni tarzdaki en benzer 4 değerlendirme.
+5. Model (`qwen2.5`) bu örneklere ve `kurallar.md` dosyasına bakarak "Öneri" ya da "Öneri Değil" kararı verir ve iki cümlelik bir değerlendirme yazar.
+6. Durum karara göre yazılır: "Öneri" için "Devam Ediyor", "Öneri Değil" için "Red Edildi". Tamamlandı ve Uygulanamaz'ı ekip sonradan girer.
+
+`kurallar.md` yapay zekâya verilen talimattır; ekip olarak gözden geçirip düzenleyebilirsiniz.
+
+## Veri güvenliği
+
+- Excel dosyaları, `veri` klasörü (hafıza ve raporlar) ve `ayarlar.toml` git'e gönderilmez.
+- Testler gerçek veri değil, uydurma örnekler kullanır.
+- Yapay zekâya yalnızca öneri bilgileri (konu, bölüm, mevcut durum, önerilen durum) gider.
+
+## Yol haritası
+
+1. **Kör test** (şimdi): isabeti ölç, kuralları ve ayarları iyileştir.
+2. **Canlı kullanım:** SharePoint'teki Excel'i okuyup yalnızca ilgili üç hücreye yazmak (IT izni gerekir), yapay zekânın yazdıklarını kaydetmek ve **7 gün kuralı**: 7 gün içinde değiştirilmeyen taslak onaylanmış sayılır, değiştirilen taslakta ekibin yazdığı örnek alınır.
+3. **Ölçüm:** taslakların yüzde kaçının değiştirilmeden onaylandığını raporlamak.
+
+## Geliştirme
+
+```
+python -m pip install -r requirements-dev.txt
+python -m pytest
+```
