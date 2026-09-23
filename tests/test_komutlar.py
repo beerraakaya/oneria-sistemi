@@ -55,7 +55,7 @@ def test_kor_test_yeni_tarz_ornekleri_cevaplari_gizleyerek_dener(ayar_dosyasi, a
     cikti = capsys.readouterr().out
     assert "Ekiple aynı karar: 1 / 2 (%50)" in cikti
 
-    raporlar = list(ayarlar.veri_klasoru.glob("kor_test_*.xlsx"))
+    raporlar = list(ayarlar.veri_klasoru.glob("kor_test_model_*.xlsx"))
     assert len(raporlar) == 1
     kitap = openpyxl.load_workbook(raporlar[0])
     ozet = {satir[0]: satir[1] for satir in kitap["Özet"].iter_rows(values_only=True)}
@@ -117,3 +117,15 @@ def test_bilinmeyen_ayar(tmp_path, capsys):
     yol.write_text("dil_model = 'qwen2.5'\n", encoding="utf-8")
     assert main(["--ayarlar", str(yol), "kontrol"]) == 1
     assert "bilinmeyen ayar: dil_model" in capsys.readouterr().err
+
+
+def test_kor_test_komsu_yontemi_modele_sormaz(ayar_dosyasi, ayarlar, sahte_ollama):
+    assert main(["--ayarlar", str(ayar_dosyasi), "kor-test", "--yontem", "komsu"]) == 0
+    assert sahte_ollama.sohbetler() == []
+    rapor = next(ayarlar.veri_klasoru.glob("kor_test_komsu_*.xlsx"))
+    kitap = openpyxl.load_workbook(rapor)
+    ozet = {satir[0]: satir[1] for satir in kitap["Özet"].iter_rows(values_only=True)}
+    assert "çoğunluk kararı" in ozet["Karar yöntemi"]
+    assert ozet["Test edilen öneri"] == 2
+    tablo = list(kitap["Karşılaştırma"].iter_rows(values_only=True))
+    assert all(satir[14].startswith("Benzer ") for satir in tablo[1:])

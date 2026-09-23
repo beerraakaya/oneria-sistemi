@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .ayarlar import Ayarlar, ayarlari_yukle
+from .degerlendirici import KomsuDegerlendirici
 from .excel import ExcelHatasi
 from .hafiza import ornek_alinabilir_mi, ozgun_satirlar
 from .kor_test import kor_test_calistir, ozetle, rapor_yaz
@@ -58,13 +59,21 @@ def kor_test(ayarlar: Ayarlar, args) -> int:
         test = sorted((o.oneri for o in asistan.hafiza.ornekler if o.ozgun), key=lambda o: o.satir)
         if args.adet:
             test = test[-args.adet :]
-        print(f"{len(test)} öneri değerlendirilecek. Model: {ayarlar.dil_modeli}\n")
-        sonuclar = kor_test_calistir(asistan.degerlendirici, test)
+        if args.yontem == "komsu":
+            degerlendirici = KomsuDegerlendirici(asistan.hafiza, ayarlar.komsu_sayisi)
+            print(
+                f"{len(test)} öneri, benzer {ayarlar.komsu_sayisi} önerinin"
+                " çoğunluk kararıyla değerlendirilecek.\n"
+            )
+        else:
+            degerlendirici = asistan.degerlendirici
+            print(f"{len(test)} öneri değerlendirilecek. Model: {ayarlar.dil_modeli}\n")
+        sonuclar = kor_test_calistir(degerlendirici, test)
     finally:
         asistan.kapat()
 
-    yol = ayarlar.veri_klasoru / f"kor_test_{datetime.now():%Y%m%d_%H%M}.xlsx"
-    rapor_yaz(sonuclar, yol, ayarlar)
+    yol = ayarlar.veri_klasoru / f"kor_test_{args.yontem}_{datetime.now():%Y%m%d_%H%M}.xlsx"
+    rapor_yaz(sonuclar, yol, ayarlar, args.yontem)
     ozet = ozetle(sonuclar)
     print(f"\nEkiple aynı karar: {ozet.ayni_karar} / {ozet.cevaplanan} (%{ozet.oran:.0f})")
     print(f"Rapor: {yol}")
@@ -111,6 +120,12 @@ def main(argv: list[str] | None = None) -> int:
     komutlar.add_parser("kontrol", help="Excel'i, kuralları ve Ollama modellerini kontrol eder")
     kor = komutlar.add_parser("kor-test", help="cevabı bilinen önerilerle kör test yapıp rapor üretir")
     kor.add_argument("--adet", type=int, help="sadece en yeni N öneriyle dene")
+    kor.add_argument(
+        "--yontem",
+        choices=["model", "komsu"],
+        default="model",
+        help="model: dil modeli karar verir; komsu: benzer önerilerin çoğunluk kararı (karşılaştırma için)",
+    )
     tek = komutlar.add_parser("degerlendir", help="tek bir Excel satırı için taslak üretir")
     tek.add_argument("satir", type=int, help="Excel'deki satır numarası")
     args = ayristirici.parse_args(argv)

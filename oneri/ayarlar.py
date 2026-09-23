@@ -29,6 +29,8 @@ class Ayarlar:
     karar_ornegi_sayisi: int = 6
     # Yazım tarzı için gösterilecek yeni tarz örnek sayısı.
     tarz_ornegi_sayisi: int = 4
+    # 'kor-test --yontem komsu' için oylamaya katılan benzer öneri sayısı (tek sayı olmalı).
+    komsu_sayisi: int = 7
     # Bundan kısa değerlendirmeler ("deneme" gibi test kayıtları) örnek alınmaz.
     en_kisa_degerlendirme: int = 40
     # İlk cümlesi bu kadar kayıtta aynen geçen metin eski kalıp metin sayılır.

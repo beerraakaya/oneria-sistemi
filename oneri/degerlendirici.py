@@ -2,6 +2,7 @@
 
 import json
 import re
+from collections import Counter
 from dataclasses import dataclass
 
 from .ayarlar import Ayarlar
@@ -77,6 +78,22 @@ class Degerlendirici:
         if gerekce not in GEREKCELER or not metin:
             raise GecersizCevap(f"Modelin cevabı beklenen biçimde değil: {cevap}")
         return {"gerekce": gerekce, "degerlendirme": metin}
+
+
+class KomsuDegerlendirici:
+    """Karşılaştırma ölçütü: modele sormadan, en benzer geçmiş önerilerin çoğunluk kararını verir.
+
+    Metin yazmaz; yalnızca kararın ne kadar isabetli olabileceğini ölçmek için kullanılır.
+    """
+
+    def __init__(self, hafiza: Hafiza, adet: int):
+        self._hafiza = hafiza
+        self._adet = adet
+
+    def degerlendir(self, oneri: Oneri, haric_satir: int | None = None) -> Taslak:
+        komsular = self._hafiza.benzerler(oneri, self._adet, haric_satir=haric_satir)
+        onay, oy = Counter(k.oneri.onay_durumu for k in komsular).most_common(1)[0]
+        return Taslak(onay, BASLANGIC_DURUMU[onay], "", f"Benzer {len(komsular)} önerinin {oy}'i {onay}")
 
 
 # Değerlendirmede kullanılmayacak ifadeler ve yerine kullanılacaklar.

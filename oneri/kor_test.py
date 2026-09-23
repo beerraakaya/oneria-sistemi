@@ -12,7 +12,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from .ayarlar import Ayarlar
-from .degerlendirici import Degerlendirici, Taslak
+from .degerlendirici import Degerlendirici, KomsuDegerlendirici, Taslak
 from .excel import ONERI, ONERI_DEGIL, Oneri
 from .ollama import GecersizCevap, OllamaHatasi
 
@@ -40,7 +40,7 @@ class Ozet:
 
 
 def kor_test_calistir(
-    degerlendirici: Degerlendirici,
+    degerlendirici: Degerlendirici | KomsuDegerlendirici,
     oneriler: list[Oneri],
     ilerleme: Callable[[str], None] = print,
 ) -> list[Sonuc]:
@@ -106,20 +106,25 @@ _SUTUNLAR = [
 ]
 
 
-def rapor_yaz(sonuclar: list[Sonuc], yol: Path, ayarlar: Ayarlar) -> None:
+def rapor_yaz(sonuclar: list[Sonuc], yol: Path, ayarlar: Ayarlar, yontem: str = "model") -> None:
     kitap = Workbook()
-    _ozet_sayfasi(kitap.active, ozetle(sonuclar), ayarlar)
+    _ozet_sayfasi(kitap.active, ozetle(sonuclar), ayarlar, yontem)
     _karsilastirma_sayfasi(kitap.create_sheet("Karşılaştırma"), sonuclar)
     yol.parent.mkdir(parents=True, exist_ok=True)
     kitap.save(yol)
 
 
-def _ozet_sayfasi(sayfa, ozet: Ozet, ayarlar: Ayarlar) -> None:
+def _ozet_sayfasi(sayfa, ozet: Ozet, ayarlar: Ayarlar, yontem: str) -> None:
     sayfa.title = "Özet"
     satirlar = [
         ("Kör test raporu", ""),
         ("Tarih", datetime.now().strftime("%d.%m.%Y %H:%M")),
-        ("Dil modeli", ayarlar.dil_modeli),
+        (
+            "Karar yöntemi",
+            f"benzer {ayarlar.komsu_sayisi} önerinin çoğunluk kararı (model kullanılmadı)"
+            if yontem == "komsu"
+            else f"dil modeli: {ayarlar.dil_modeli}",
+        ),
         ("Gömme modeli", ayarlar.gomme_modeli),
         ("", ""),
         ("Test edilen öneri", ozet.toplam),
