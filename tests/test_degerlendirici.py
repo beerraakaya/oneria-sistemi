@@ -162,6 +162,10 @@ def test_karar_celiskisi_bulunur():
     assert karar_celiskileri("Öneri", "Bu kayıt öneri sayılmaz.") == ["öneri sayılmaz"]
     assert karar_celiskileri("Öneri", "Öneri niteliğindedir; pilot uygulanmalıdır.") == []
     assert karar_celiskileri("Öneri Değil", "Rutin bakım işidir; öneri sayılmaz.") == []
+    # "Öneri Değil" kararıyla uyumlu olumsuz cümleler yanlış alarm vermemeli.
+    assert karar_celiskileri("Öneri Değil", "Bu haliyle değerlendirmeye devam edilemez.") == []
+    assert karar_celiskileri("Öneri Değil", "Bu, geçerli bir öneri değildir.") == []
+    assert karar_celiskileri("Öneri Değil", "Geçerli bir öneridir.") == ["Geçerli bir öneridir"]
 
 
 def test_kararla_celisen_metin_bir_kez_duzelttirilir(asistan, sahte_ollama):
@@ -176,8 +180,9 @@ def test_kararla_celisen_metin_bir_kez_duzelttirilir(asistan, sahte_ollama):
     assert 'karar "Öneri Değil"' in duzeltme and "'Öneri niteliğindedir'" in duzeltme
 
 
-def test_celiski_surerse_taslak_reddedilir(asistan, sahte_ollama):
+def test_celiski_surerse_taslak_uyariyla_tutulur(asistan, sahte_ollama):
     sahte_ollama.sohbet_cevabi = {"gerekce": "Rutin iş", "degerlendirme": "Öneri niteliğindedir."}
-    with pytest.raises(GecersizCevap, match="çelişen"):
-        asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
+    taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
     assert len(sahte_ollama.sohbetler()) == 2
+    assert taslak.onay_durumu == "Öneri Değil"
+    assert taslak.gerekce == "Rutin iş (uyarı: metin kararla çelişebilir: Öneri niteliğindedir)"

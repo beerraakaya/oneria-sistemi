@@ -70,13 +70,11 @@ class Degerlendirici:
                     f"Model uygunsuz ifade kullanmayı sürdürdü: {', '.join(uygunsuz)}"
                 )
             celiski = karar_celiskileri(onay, cevap["degerlendirme"])
-            if celiski:
-                raise GecersizCevap(
-                    f"Model kararla çelişen metin yazmayı sürdürdü: {', '.join(celiski)}"
-                )
-        return Taslak(
-            onay, BASLANGIC_DURUMU[onay], cevap["degerlendirme"], cevap["gerekce"], cevap["onerilen_sey"]
-        )
+        gerekce = cevap["gerekce"]
+        if celiski:
+            # Taslak atılmaz, ekip kontrolünde dikkat çeksin diye işaretlenir.
+            gerekce += f" (uyarı: metin kararla çelişebilir: {', '.join(celiski)})"
+        return Taslak(onay, BASLANGIC_DURUMU[onay], cevap["degerlendirme"], gerekce, cevap["onerilen_sey"])
 
     def _sor(self, mesajlar: list[dict], sema: dict) -> dict:
         cevap = self._ollama.json_sohbet(
@@ -157,7 +155,11 @@ def uygunsuz_ifadeler(metin: str) -> list[str]:
 # Karar ile metnin çeliştiğini gösteren ifadeler: karar "Öneri Değil" iken metin öneri
 # olduğunu söylüyorsa ya da tersi.
 KARARLA_CELISEN_IFADELER = {
-    ONERI_DEGIL: [r"öneri niteliğindedir", r"geçerli bir öneri", r"değerlendirmeye devam edil\w*"],
+    ONERI_DEGIL: [
+        r"öneri niteliğindedir",
+        r"geçerli bir öneri(?:dir)?(?! değil)",
+        r"değerlendirmeye devam edilebilir",
+    ],
     ONERI: [
         r"öneri olarak (?:değerlendirilmemiş|kabul edilmemiş|ilerletilmemiş)\w*",
         r"öneri sayılmaz",
