@@ -66,7 +66,11 @@ class Degerlendirici:
             self._ayarlar.dil_modeli,
             mesajlar,
             CEVAP_SEMASI,
-            {"temperature": self._ayarlar.sicaklik, "num_ctx": self._ayarlar.baglam_uzunlugu},
+            {
+                "temperature": self._ayarlar.sicaklik,
+                "seed": self._ayarlar.tohum,
+                "num_ctx": self._ayarlar.baglam_uzunlugu,
+            },
         )
         gerekce = cevap.get("gerekce")
         metin = str(cevap.get("degerlendirme") or "").strip()

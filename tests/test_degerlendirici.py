@@ -44,7 +44,11 @@ def test_istemde_yeni_oneri_kurallar_ve_ornekler_var(asistan, sahte_ollama, ayar
     assert "Basamaklara yeni kaymaz bant" in kullanici
     assert YENI_TARZ_OLUMLU in kullanici
     assert sohbet["model"] == ayarlar.dil_modeli
-    assert sohbet["options"] == {"temperature": ayarlar.sicaklik, "num_ctx": ayarlar.baglam_uzunlugu}
+    assert sohbet["options"] == {
+        "temperature": 0.0,
+        "seed": ayarlar.tohum,
+        "num_ctx": ayarlar.baglam_uzunlugu,
+    }
 
 
 def test_tuzla_test_kaydi_ve_kisi_adlari_isteme_girmez(asistan, sahte_ollama):

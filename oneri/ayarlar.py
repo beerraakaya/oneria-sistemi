@@ -21,7 +21,9 @@ class Ayarlar:
     # Talimat + örnekler en fazla ~6-7 bin token tutuyor. Ollama sığmayan kısmı sessizce
     # kestiği için varsayılanı (2048-4096) yetmez.
     baglam_uzunlugu: int = 12288
-    sicaklik: float = 0.2
+    # 0: aynı talimata her seferinde aynı cevap; testler karşılaştırılabilir olur.
+    sicaklik: float = 0.0
+    tohum: int = 42
 
     # Karar için gösterilecek benzer geçmiş öneri sayısı.
     karar_ornegi_sayisi: int = 6
