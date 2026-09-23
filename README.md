@@ -46,7 +46,7 @@ python -m oneri kor-test --yontem komsu
 python -m oneri kor-test --yontem karma
 ```
 
-Kör test raporu `veri\kor_test_<tarih>.xlsx` dosyasına yazılır:
+Kör test raporu `veri\kor_test_<yöntem>_<tarih>.xlsx` dosyasına yazılır:
 
 - **Özet** sayfası: yapay zekâ kaç öneride ekiple aynı kararı verdi.
 - **Karşılaştırma** sayfası: her öneri için ekibin ve yapay zekânın cevabı yan yana. "Metin Puanı" sütununa 1–5 arası puan vererek metinlerin kalitesini de ölçebilirsiniz.
