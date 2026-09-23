@@ -6,7 +6,7 @@ from collections import Counter
 from dataclasses import dataclass
 
 from .ayarlar import Ayarlar
-from .excel import BASLANGIC_DURUMU, Oneri
+from .excel import BASLANGIC_DURUMU, ONERI, ONERI_DEGIL, Oneri
 from .hafiza import Hafiza
 from .istem import GEREKCELER, cevap_semasi, kullanici_mesaji, sistem_mesaji
 from .ollama import GecersizCevap, Ollama
@@ -53,20 +53,27 @@ class Degerlendirici:
         ]
         sema = cevap_semasi(sabit_onay)
         cevap = self._sor(mesajlar, sema)
+        onay = GEREKCELER[cevap["gerekce"]]
         uygunsuz = uygunsuz_ifadeler(cevap["degerlendirme"])
-        if uygunsuz:
-            # Bir kez düzelttirilir; yine kullanırsa taslak hiç kabul edilmez.
+        celiski = karar_celiskileri(onay, cevap["degerlendirme"])
+        if uygunsuz or celiski:
+            # Bir kez düzelttirilir; yine olursa taslak hiç kabul edilmez.
             mesajlar += [
                 {"role": "assistant", "content": json.dumps(cevap, ensure_ascii=False)},
-                {"role": "user", "content": _duzeltme_istegi(uygunsuz)},
+                {"role": "user", "content": _duzeltme_istegi(uygunsuz, celiski, onay)},
             ]
             cevap = self._sor(mesajlar, sema)
+            onay = GEREKCELER[cevap["gerekce"]]
             uygunsuz = uygunsuz_ifadeler(cevap["degerlendirme"])
             if uygunsuz:
                 raise GecersizCevap(
                     f"Model uygunsuz ifade kullanmayı sürdürdü: {', '.join(uygunsuz)}"
                 )
-        onay = GEREKCELER[cevap["gerekce"]]
+            celiski = karar_celiskileri(onay, cevap["degerlendirme"])
+            if celiski:
+                raise GecersizCevap(
+                    f"Model kararla çelişen metin yazmayı sürdürdü: {', '.join(celiski)}"
+                )
         return Taslak(
             onay, BASLANGIC_DURUMU[onay], cevap["degerlendirme"], cevap["gerekce"], cevap["onerilen_sey"]
         )
@@ -147,14 +154,42 @@ def uygunsuz_ifadeler(metin: str) -> list[str]:
     return bulunan
 
 
-def _duzeltme_istegi(uygunsuz: list[str]) -> str:
-    yerine = "; ".join(
-        f"'{ifade}' yerine '{UYGUNSUZ_IFADELER[kok]}'"
-        for kok in UYGUNSUZ_IFADELER
-        for ifade in uygunsuz
-        if ifade.casefold().startswith(kok)
-    )
-    return (
-        f"Değerlendirmede uygun olmayan bir ifade kullandın: {yerine} kullanılmalı. "
-        "Gerekçeyi değiştirmeden metni yeniden yaz ve cevabı aynı JSON biçiminde ver."
-    )
+# Karar ile metnin çeliştiğini gösteren ifadeler: karar "Öneri Değil" iken metin öneri
+# olduğunu söylüyorsa ya da tersi.
+KARARLA_CELISEN_IFADELER = {
+    ONERI_DEGIL: [r"öneri niteliğindedir", r"geçerli bir öneri", r"değerlendirmeye devam edil\w*"],
+    ONERI: [
+        r"öneri olarak (?:değerlendirilmemiş|kabul edilmemiş|ilerletilmemiş)\w*",
+        r"öneri sayılmaz",
+        r"öneri niteliği taşımamaktadır",
+        r"öneri değildir",
+    ],
+}
+
+
+def karar_celiskileri(onay: str, metin: str) -> list[str]:
+    """Metinde, verilen kararla çelişen ifadeleri döndürür."""
+    return [
+        eslesme.group(0)
+        for kalip in KARARLA_CELISEN_IFADELER[onay]
+        for eslesme in re.finditer(kalip, metin, flags=re.IGNORECASE)
+    ]
+
+
+def _duzeltme_istegi(uygunsuz: list[str], celiski: list[str], onay: str) -> str:
+    parcalar = []
+    if uygunsuz:
+        yerine = "; ".join(
+            f"'{ifade}' yerine '{UYGUNSUZ_IFADELER[kok]}'"
+            for kok in UYGUNSUZ_IFADELER
+            for ifade in uygunsuz
+            if ifade.casefold().startswith(kok)
+        )
+        parcalar.append(f"Değerlendirmede uygun olmayan bir ifade kullandın: {yerine} kullanılmalı.")
+    if celiski:
+        parcalar.append(
+            f'Seçtiğin gerekçeye göre karar "{onay}", ama metinde '
+            f"{', '.join(repr(c) for c in celiski)} yazıyor; metin kararla çelişiyor."
+        )
+    parcalar.append("Gerekçeyi değiştirmeden metni kararla tutarlı olacak şekilde yeniden yaz ve cevabı aynı JSON biçiminde ver.")
+    return " ".join(parcalar)

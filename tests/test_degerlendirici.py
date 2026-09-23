@@ -1,6 +1,6 @@
 import pytest
 
-from oneri.degerlendirici import KarmaDegerlendirici, uygunsuz_ifadeler
+from oneri.degerlendirici import KarmaDegerlendirici, karar_celiskileri, uygunsuz_ifadeler
 from oneri.istem import GEREKCELER
 from oneri.ollama import GecersizCevap, Ollama
 from oneri.uygulama import asistani_kur
@@ -155,3 +155,29 @@ def test_model_once_onerilen_seyi_ozetler(asistan, sahte_ollama):
     assert list(sema["properties"])[:2] == ["onerilen_sey", "gerekce"]
     assert taslak.onerilen_sey == "Basamaklara kaymaz bant yapıştırmak."
     assert "Karar mevcut duruma değil, önerilen şeye göre verilir." in sahte_ollama.sohbetler()[-1]["messages"][0]["content"]
+
+
+def test_karar_celiskisi_bulunur():
+    assert karar_celiskileri("Öneri Değil", "Öneri niteliğindedir; maliyet hesaplanmalıdır.") == ["Öneri niteliğindedir"]
+    assert karar_celiskileri("Öneri", "Bu kayıt öneri sayılmaz.") == ["öneri sayılmaz"]
+    assert karar_celiskileri("Öneri", "Öneri niteliğindedir; pilot uygulanmalıdır.") == []
+    assert karar_celiskileri("Öneri Değil", "Rutin bakım işidir; öneri sayılmaz.") == []
+
+
+def test_kararla_celisen_metin_bir_kez_duzelttirilir(asistan, sahte_ollama):
+    sahte_ollama.sohbet_cevabi = [
+        {"onerilen_sey": "x", "gerekce": "Rutin iş", "degerlendirme": "Öneri niteliğindedir ama bakım işidir."},
+        {"onerilen_sey": "x", "gerekce": "Rutin iş", "degerlendirme": "Aşınan bantın yenilenmesi rutin bakımdır."},
+    ]
+    taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
+
+    assert taslak.degerlendirme == "Aşınan bantın yenilenmesi rutin bakımdır."
+    duzeltme = sahte_ollama.sohbetler()[-1]["messages"][-1]["content"]
+    assert 'karar "Öneri Değil"' in duzeltme and "'Öneri niteliğindedir'" in duzeltme
+
+
+def test_celiski_surerse_taslak_reddedilir(asistan, sahte_ollama):
+    sahte_ollama.sohbet_cevabi = {"gerekce": "Rutin iş", "degerlendirme": "Öneri niteliğindedir."}
+    with pytest.raises(GecersizCevap, match="çelişen"):
+        asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
+    assert len(sahte_ollama.sohbetler()) == 2

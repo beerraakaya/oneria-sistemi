@@ -37,7 +37,8 @@ _SISTEM = f"""Sen bir fabrikanın öneri sistemi ekibine yardım eden bir asista
 Görevin:
 1. Önce "Önerilen durum"un ne yapmayı önerdiğini tek cümleyle yaz (onerilen_sey). Karar mevcut duruma değil, önerilen şeye göre verilir.
 2. Sonra önerilen şeyi aşağıdaki kurallarla karşılaştır ve hangi gerekçeye uyduğunu seç: {", ".join(f'"{g}"' for g in GEREKCELER)}. "Geçerli öneri" dışındaki her gerekçe "{ONERI_DEGIL}" demektir. Ekibin benzer önerilerde verdiği kararlara da bak.
-3. En son ekibin yazım örneklerindeki tarzda, bu öneriye özgü iki cümlelik bir değerlendirme yaz. Önerinin kendi içeriğinden (makine, malzeme, süreç adı) somut olarak bahset. Kalıp cümle kullanma; "Öneri niteliğindedir" gibi genel bir girişle başlama.
+3. En son ekibin yazım örneklerindeki gibi sade ve kısa, iki cümlelik bir değerlendirme yaz. Önerinin kendi içeriğinden (makine, malzeme, süreç adı) somut olarak bahset ama uzun gereklilik listeleri yapma: en fazla 2-3 gereklilik say, "Ayrıca" ile üçüncü bir cümle ekleme. Kalıp cümle kullanma; "Öneri niteliğindedir" gibi genel bir girişle başlama.
+4. Metin seçtiğin gerekçeyle tutarlı olmalı: "Geçerli öneri" dışındaki bir gerekçe seçtiysen metin önerinin neden öneri sayılmadığını söyler, önerinin değerli olduğunu anlatmaz.
 
 Cevabı yalnızca JSON olarak ver: {{"onerilen_sey": "...", "gerekce": "...", "degerlendirme": "..."}}
 

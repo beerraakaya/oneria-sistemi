@@ -25,7 +25,8 @@ Durum yazılmaz; sistem "Öneri" için "Devam Ediyor", "Öneri Değil" için "Re
 
 ## 3. Değerlendirme metni
 
-- İki cümle, toplam yaklaşık 180–260 karakter.
+- İki kısa ve sade cümle. Ekibin örnekleri gibi basit yazılır; uzun gereklilik listeleri yapılmaz, en fazla 2–3 gereklilik sayılır.
+- Metin kararla tutarlıdır: "Öneri Değil" kararında önerinin neden öneri sayılmadığı yazılır, önerinin değerli olduğu anlatılmaz.
 - **1. cümle:** önerinin ne tür bir iyileştirme olduğunu ve taşıdığı potansiyeli ya da eksikliği söyler.
 - **2. cümle:**
   - "Öneri" ise ilerleyebilmesi için neyin ölçülmesi, hesaplanması, denenmesi ya da kimin onayının gerektiğini söyler.
@@ -33,7 +34,7 @@ Durum yazılmaz; sistem "Öneri" için "Devam Ediyor", "Öneri Değil" için "Re
 - Kurumsal, yapıcı ve saygılı bir dil kullanılır. Kişi adı ve "ben" dili kullanılmaz.
 - Kişileri tanımlarken güncel ve saygılı ifadeler kullanılır: "özürlü" asla yazılmaz, yerine "engelli" yazılır (örn. "engelli çalışanlar", "engelli erişimi").
 
-Konuya göre ilerlemek için genellikle istenenler:
+Konuya göre ilerlemek için istenebilecekler (hepsi yazılmaz; öneriye en uygun 2–3 tanesi seçilir):
 
 | Konu | İstenenler |
 |---|---|
