@@ -191,5 +191,8 @@ def _duzeltme_istegi(uygunsuz: list[str], celiski: list[str], onay: str) -> str:
             f'Seçtiğin gerekçeye göre karar "{onay}", ama metinde '
             f"{', '.join(repr(c) for c in celiski)} yazıyor; metin kararla çelişiyor."
         )
-    parcalar.append("Gerekçeyi değiştirmeden metni kararla tutarlı olacak şekilde yeniden yaz ve cevabı aynı JSON biçiminde ver.")
+    parcalar.append(
+        "Gerekçeyi değiştirmeden metni kararla tutarlı olacak şekilde yeniden yaz"
+        " ve cevabı aynı JSON biçiminde ver."
+    )
     return " ".join(parcalar)
