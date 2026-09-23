@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+
+# Veritabanı ve Çıktılar
+chroma_db/
+
+# Excel ve Veri Dosyaları
+*.xlsx
+*.csv
