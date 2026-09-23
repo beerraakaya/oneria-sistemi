@@ -141,3 +141,17 @@ def test_sabit_karara_uymayan_gerekce_reddedilir(asistan, sahte_ollama):
     sahte_ollama.sohbet_cevabi = {"gerekce": "Rutin iş", "degerlendirme": "Rutin bakım işidir."}
     with pytest.raises(GecersizCevap):
         asistan.degerlendirici.degerlendir(_oneri(asistan, 9), sabit_onay="Öneri")
+
+
+def test_model_once_onerilen_seyi_ozetler(asistan, sahte_ollama):
+    sahte_ollama.sohbet_cevabi = {
+        "onerilen_sey": "Basamaklara kaymaz bant yapıştırmak.",
+        "gerekce": "Rutin iş",
+        "degerlendirme": "Aşınan bantın yenilenmesi rutin bakımdır.",
+    }
+    taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
+
+    sema = sahte_ollama.sohbetler()[-1]["format"]
+    assert list(sema["properties"])[:2] == ["onerilen_sey", "gerekce"]
+    assert taslak.onerilen_sey == "Basamaklara kaymaz bant yapıştırmak."
+    assert "Karar mevcut duruma değil, önerilen şeye göre verilir." in sahte_ollama.sohbetler()[-1]["messages"][0]["content"]

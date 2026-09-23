@@ -103,6 +103,7 @@ _SUTUNLAR = [
     ("Süre (sn)", 9),
     ("Hata", 30),
     ("Yapay Zekânın Gerekçesi", 22),
+    ("Yapay Zekâ Önerilen Şeyi Nasıl Anladı", 40),
 ]
 
 
@@ -187,6 +188,7 @@ def _karsilastirma_sayfasi(sayfa, sonuclar: list[Sonuc]) -> None:
                 round(s.sure, 1),
                 s.hata,
                 s.taslak.gerekce if s.taslak else "",
+                s.taslak.onerilen_sey if s.taslak else "",
             ]
         )
         for hucre in sayfa[sayfa.max_row]:

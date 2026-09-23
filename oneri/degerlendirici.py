@@ -18,6 +18,7 @@ class Taslak:
     durum: str
     degerlendirme: str
     gerekce: str = ""  # modelin seçtiği kural, örn. "Rutin iş"
+    onerilen_sey: str = ""  # modelin önerilen durumu nasıl anladığı
 
 
 class Degerlendirici:
@@ -66,7 +67,9 @@ class Degerlendirici:
                     f"Model uygunsuz ifade kullanmayı sürdürdü: {', '.join(uygunsuz)}"
                 )
         onay = GEREKCELER[cevap["gerekce"]]
-        return Taslak(onay, BASLANGIC_DURUMU[onay], cevap["degerlendirme"], cevap["gerekce"])
+        return Taslak(
+            onay, BASLANGIC_DURUMU[onay], cevap["degerlendirme"], cevap["gerekce"], cevap["onerilen_sey"]
+        )
 
     def _sor(self, mesajlar: list[dict], sema: dict) -> dict:
         cevap = self._ollama.json_sohbet(
@@ -83,7 +86,11 @@ class Degerlendirici:
         metin = str(cevap.get("degerlendirme") or "").strip()
         if gerekce not in sema["properties"]["gerekce"]["enum"] or not metin:
             raise GecersizCevap(f"Modelin cevabı beklenen biçimde değil: {cevap}")
-        return {"gerekce": gerekce, "degerlendirme": metin}
+        return {
+            "onerilen_sey": str(cevap.get("onerilen_sey") or "").strip(),
+            "gerekce": gerekce,
+            "degerlendirme": metin,
+        }
 
 
 class KomsuDegerlendirici:
@@ -124,7 +131,7 @@ class KarmaDegerlendirici:
             taslak = self._degerlendirici.degerlendir(oneri, haric_satir)
             kaynak = f"model (benzer öneriler bölünmüş: {oy}/{len(komsular)})"
         gerekce = f"{taslak.gerekce} - karar: {kaynak}"
-        return Taslak(taslak.onay_durumu, taslak.durum, taslak.degerlendirme, gerekce)
+        return Taslak(taslak.onay_durumu, taslak.durum, taslak.degerlendirme, gerekce, taslak.onerilen_sey)
 
 
 # Değerlendirmede kullanılmayacak ifadeler ve yerine kullanılacaklar.

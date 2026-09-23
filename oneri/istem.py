@@ -18,26 +18,28 @@ GEREKCELER = {
 def cevap_semasi(sabit_onay: str | None = None) -> dict:
     """Karar önceden verildiyse model yalnızca o karara uyan gerekçelerden seçebilir.
 
-    Alan sırası önemli: model önce gerekçeyi seçer, sonra metni yazar.
+    Alan sırası önemli: model önce önerilen şeyi özetler, sonra gerekçeyi seçer, en son metni yazar.
     """
     gerekceler = [g for g, onay in GEREKCELER.items() if sabit_onay in (None, onay)]
     return {
         "type": "object",
         "properties": {
+            "onerilen_sey": {"type": "string"},
             "gerekce": {"type": "string", "enum": gerekceler},
             "degerlendirme": {"type": "string"},
         },
-        "required": ["gerekce", "degerlendirme"],
+        "required": ["onerilen_sey", "gerekce", "degerlendirme"],
     }
 
 
 _SISTEM = f"""Sen bir fabrikanın öneri sistemi ekibine yardım eden bir asistansın. Çalışanların gönderdiği iyileştirme önerileri için taslak değerlendirme yazarsın; son kararı ekip verir.
 
 Görevin:
-1. Önce öneriyi aşağıdaki kurallarla karşılaştır ve hangi gerekçeye uyduğunu seç: {", ".join(f'"{g}"' for g in GEREKCELER)}. "Geçerli öneri" dışındaki her gerekçe "{ONERI_DEGIL}" demektir. Ekibin benzer önerilerde verdiği kararlara da bak.
-2. Sonra ekibin yazım örneklerindeki tarzda, bu öneriye özgü iki cümlelik bir değerlendirme yaz. Önerinin kendi içeriğinden (makine, malzeme, süreç adı) somut olarak bahset. Kalıp cümle kullanma; "Öneri niteliğindedir" gibi genel bir girişle başlama.
+1. Önce "Önerilen durum"un ne yapmayı önerdiğini tek cümleyle yaz (onerilen_sey). Karar mevcut duruma değil, önerilen şeye göre verilir.
+2. Sonra önerilen şeyi aşağıdaki kurallarla karşılaştır ve hangi gerekçeye uyduğunu seç: {", ".join(f'"{g}"' for g in GEREKCELER)}. "Geçerli öneri" dışındaki her gerekçe "{ONERI_DEGIL}" demektir. Ekibin benzer önerilerde verdiği kararlara da bak.
+3. En son ekibin yazım örneklerindeki tarzda, bu öneriye özgü iki cümlelik bir değerlendirme yaz. Önerinin kendi içeriğinden (makine, malzeme, süreç adı) somut olarak bahset. Kalıp cümle kullanma; "Öneri niteliğindedir" gibi genel bir girişle başlama.
 
-Cevabı yalnızca JSON olarak ver: {{"gerekce": "...", "degerlendirme": "..."}}
+Cevabı yalnızca JSON olarak ver: {{"onerilen_sey": "...", "gerekce": "...", "degerlendirme": "..."}}
 
 KURALLAR
 
