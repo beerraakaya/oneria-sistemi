@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from .ayarlar import Ayarlar
 from .excel import BASLANGIC_DURUMU, Oneri
 from .hafiza import Hafiza
-from .istem import CEVAP_SEMASI, kullanici_mesaji, sistem_mesaji
+from .istem import CEVAP_SEMASI, GEREKCELER, kullanici_mesaji, sistem_mesaji
 from .ollama import GecersizCevap, Ollama
 
 
@@ -16,6 +16,7 @@ class Taslak:
     onay_durumu: str
     durum: str
     degerlendirme: str
+    gerekce: str = ""  # modelin seçtiği kural, örn. "Rutin iş"
 
 
 class Degerlendirici:
@@ -57,8 +58,8 @@ class Degerlendirici:
                 raise GecersizCevap(
                     f"Model uygunsuz ifade kullanmayı sürdürdü: {', '.join(uygunsuz)}"
                 )
-        onay = cevap["onay_durumu"]
-        return Taslak(onay, BASLANGIC_DURUMU[onay], cevap["degerlendirme"])
+        onay = GEREKCELER[cevap["gerekce"]]
+        return Taslak(onay, BASLANGIC_DURUMU[onay], cevap["degerlendirme"], cevap["gerekce"])
 
     def _sor(self, mesajlar: list[dict]) -> dict:
         cevap = self._ollama.json_sohbet(
@@ -67,11 +68,11 @@ class Degerlendirici:
             CEVAP_SEMASI,
             {"temperature": self._ayarlar.sicaklik, "num_ctx": self._ayarlar.baglam_uzunlugu},
         )
-        onay = cevap.get("onay_durumu")
+        gerekce = cevap.get("gerekce")
         metin = str(cevap.get("degerlendirme") or "").strip()
-        if onay not in BASLANGIC_DURUMU or not metin:
+        if gerekce not in GEREKCELER or not metin:
             raise GecersizCevap(f"Modelin cevabı beklenen biçimde değil: {cevap}")
-        return {"onay_durumu": onay, "degerlendirme": metin}
+        return {"gerekce": gerekce, "degerlendirme": metin}
 
 
 # Değerlendirmede kullanılmayacak ifadeler ve yerine kullanılacaklar.
@@ -96,5 +97,5 @@ def _duzeltme_istegi(uygunsuz: list[str]) -> str:
     )
     return (
         f"Değerlendirmede uygun olmayan bir ifade kullandın: {yerine} kullanılmalı. "
-        "Kararı değiştirmeden metni yeniden yaz ve cevabı aynı JSON biçiminde ver."
+        "Gerekçeyi değiştirmeden metni yeniden yaz ve cevabı aynı JSON biçiminde ver."
     )

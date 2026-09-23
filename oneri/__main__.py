@@ -88,6 +88,7 @@ def degerlendir(ayarlar: Ayarlar, args) -> int:
 
     print(f"Satır {oneri.satir} - {oneri.konu}\n")
     print("Yapay zekânın taslağı")
+    print(f"  Gerekçe      : {taslak.gerekce}")
     print(f"  Onay Durumu  : {taslak.onay_durumu}")
     print(f"  Durum        : {taslak.durum}")
     print(f"  Değerlendirme: {taslak.degerlendirme}")

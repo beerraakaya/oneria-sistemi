@@ -34,7 +34,7 @@ class SahteOllama:
         # Sohbet isteğine verilecek cevap: sözlük JSON'a çevrilir, metin olduğu gibi gönderilir.
         # Liste verilirse her istekte sıradaki cevap kullanılır, sonuncusu tekrarlanır.
         self.sohbet_cevabi: dict | str | list = {
-            "onay_durumu": "Öneri",
+            "gerekce": "Geçerli öneri",
             "degerlendirme": "Uygulanabilir bir iyileştirmedir. Maliyet ve fayda hesaplanmalıdır.",
         }
 

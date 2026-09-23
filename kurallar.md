@@ -3,17 +3,16 @@
 > Bu dosya yapay zekâya verilen talimattır. Ekip olarak okuyun ve gerekirse düzenleyin; değişiklik bir sonraki çalıştırmada geçerli olur.
 > Taslaktır: geçmiş değerlendirmelerdeki ortak gerekçelerden çıkarılmıştır.
 
-## 1. Karar: "Öneri" mi, "Öneri Değil" mi?
+## 1. Karar: gerekçe seçimi
 
-Somut bir çözüm sunan ve süreç, kalite, iş güvenliği, maliyet, enerji, çevre ya da çalışan deneyiminde iyileştirme potansiyeli taşıyan kayıtlar **"Öneri"**dir. Uygulanabilirliği henüz kesin olmasa da "Öneri" denir; ilerlemesi için gerekenler metinde yazılır.
+Her öneri için aşağıdaki gerekçelerden biri seçilir. "Geçerli öneri" dışındaki her gerekçe **"Öneri Değil"** demektir.
 
-Aşağıdaki durumlarda karar **"Öneri Değil"**dir:
-
-1. **Somut çözüm ya da ölçülebilir fayda yok.** Kayıt yalnızca bir problemi, şikâyeti ya da isteği anlatıyor; çözümün mevcut uygulamadan farkı ve beklenen faydası belli değil.
-2. **Rutin iş.** Temizlik, bakım, kalibrasyon, arızalı parçanın onarımı ya da değişimi gibi zaten yapılması gereken standart işler. Yeni bir makinenin devreye alma eksiklikleri de bu kapsamdadır.
-3. **Yasal ya da temel iş güvenliği yükümlülüğü.** Eksik koruyucu gibi mevzuat veya temel güvenlik gereği hemen giderilmesi gereken konular. Bunlar öneri sisteminde bekletilmez; ilgili birimin doğrudan aksiyon alması gerektiği yazılır.
-4. **Mükerrer.** Aynı ya da çok benzer bir uygulama veya öneri zaten var. Ayrı öneri yerine mevcut çalışmaya dahil edilmesi önerilir.
-5. **Politika ya da sosyal hak talebi.** Süreç iyileştirmesinden çok şirket politikası, yan hak, sosyal imkân ya da bütçe kararı gerektiren konular. İK gibi ilgili birimin ayrıca değerlendirebileceği yazılır.
+- **Geçerli öneri:** Mevcut bir süreci, makineyi, ürünü, güvenliği, maliyeti, enerji ya da çevre performansını somut bir değişiklikle iyileştirmeyi öneriyor. Öneri sahibinin fayda ya da maliyet hesabı yapmamış olması **tek başına ret nedeni değildir**; bu durumda "Öneri" denir ve ilerlemesi için neyin ölçülmesi, denenmesi ya da hesaplanması gerektiği yazılır. Deneme üretimi, numune, pilot gerektiren teknik fikirler de geçerli öneridir. Somut ve düşük maliyetli bir uygulamayla çalışan ya da ziyaretçi deneyimini iyileştiren fikirler de geçerli öneri sayılabilir.
+- **Somut çözüm yok:** Kayıt yalnızca bir problemi, şikâyeti ya da isteği anlatıyor; ne yapılacağı belli değil.
+- **Rutin iş:** Temizlik, bakım, kalibrasyon, aşınan ya da hasarlı parçanın kontrolü, onarımı ya da değişimi gibi zaten yapılması gereken işler. Yeni bir makinenin devreye alma eksiklikleri ve başka bir birimin zaten sorumlu olduğu teknik konular da bu kapsamdadır.
+- **Yasal/İSG yükümlülüğü:** Eksik koruyucu gibi mevzuat ya da temel güvenlik gereği hemen giderilmesi gereken konular. Bunlar öneri sisteminde bekletilmez; İSG ve ilgili birimin doğrudan aksiyon alması gerektiği yazılır.
+- **Mükerrer:** Aynı ya da çok benzer bir uygulama veya öneri zaten var ya da öneri, yürüyen bir projenin alt aksiyonu olarak ele alınabilir.
+- **Politika/sosyal hak talebi:** Süreç iyileştirmesi içermeyen yan hak, sosyal imkân, eşya ya da ekipman talebi veya şirket politikası kararı gerektiren konular. İK gibi ilgili birimin ayrıca değerlendirebileceği yazılır.
 
 ## 2. Durum
 

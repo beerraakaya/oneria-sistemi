@@ -3,23 +3,34 @@
 from .excel import ONERI, ONERI_DEGIL, Oneri
 from .hafiza import Ornek
 
-# Modelin cevabı bu biçime zorlanır; Onay Durumu yalnızca iki değerden biri olabilir.
+# Model önce hangi kurala uyduğunu seçer; Onay Durumu bu seçimden çıkarılır.
+# Adlar kurallar.md'deki başlıklarla aynı olmalı.
+GEREKCELER = {
+    "Geçerli öneri": ONERI,
+    "Somut çözüm yok": ONERI_DEGIL,
+    "Rutin iş": ONERI_DEGIL,
+    "Yasal/İSG yükümlülüğü": ONERI_DEGIL,
+    "Mükerrer": ONERI_DEGIL,
+    "Politika/sosyal hak talebi": ONERI_DEGIL,
+}
+
+# Alan sırası önemli: model önce gerekçeyi seçer, sonra metni yazar.
 CEVAP_SEMASI = {
     "type": "object",
     "properties": {
-        "onay_durumu": {"type": "string", "enum": [ONERI, ONERI_DEGIL]},
+        "gerekce": {"type": "string", "enum": list(GEREKCELER)},
         "degerlendirme": {"type": "string"},
     },
-    "required": ["onay_durumu", "degerlendirme"],
+    "required": ["gerekce", "degerlendirme"],
 }
 
 _SISTEM = f"""Sen bir fabrikanın öneri sistemi ekibine yardım eden bir asistansın. Çalışanların gönderdiği iyileştirme önerileri için taslak değerlendirme yazarsın; son kararı ekip verir.
 
 Görevin:
-1. Önerinin "{ONERI}" mi yoksa "{ONERI_DEGIL}" mi olduğuna karar ver. Kararını aşağıdaki kurallara ve ekibin benzer önerilerde verdiği geçmiş kararlara dayandır.
-2. Ekibin yazım örneklerindeki tarzda kısa bir değerlendirme metni yaz.
+1. Önce öneriyi aşağıdaki kurallarla karşılaştır ve hangi gerekçeye uyduğunu seç: {", ".join(f'"{g}"' for g in GEREKCELER)}. "Geçerli öneri" dışındaki her gerekçe "{ONERI_DEGIL}" demektir. Ekibin benzer önerilerde verdiği kararlara da bak.
+2. Sonra ekibin yazım örneklerindeki tarzda, bu öneriye özgü iki cümlelik bir değerlendirme yaz. Önerinin kendi içeriğinden (makine, malzeme, süreç adı) somut olarak bahset. Kalıp cümle kullanma; "Öneri niteliğindedir" gibi genel bir girişle başlama.
 
-Cevabı yalnızca JSON olarak ver: {{"onay_durumu": "...", "degerlendirme": "..."}}
+Cevabı yalnızca JSON olarak ver: {{"gerekce": "...", "degerlendirme": "..."}}
 
 KURALLAR
 
@@ -35,12 +46,7 @@ def sistem_mesaji(kurallar: str) -> str:
 
 def kullanici_mesaji(yeni: Oneri, karar_ornekleri: list[Ornek], tarz_ornekleri: list[Ornek]) -> str:
     """Örnekler en benzerden başlayarak verilmeli; en benzer olan yeni önerinin hemen üstüne gelir."""
-    parcalar = [
-        "BENZER GEÇMİŞ ÖNERİLER VE EKİBİN KARARLARI",
-        "(Bu metinlerin bir kısmı eski kalıp cümlelerle yazıldı. Bunları karar için kullan, "
-        "yazım tarzı için örnek alma.)",
-        "",
-    ]
+    parcalar = ["BENZER GEÇMİŞ ÖNERİLER VE EKİBİN KARARLARI", ""]
     parcalar += _ornek_bloklari(karar_ornekleri)
     parcalar += ["YAZIM ÖRNEKLERİ (değerlendirme metnini bu tarzda yaz)", ""]
     parcalar += _ornek_bloklari(tarz_ornekleri)
@@ -48,7 +54,7 @@ def kullanici_mesaji(yeni: Oneri, karar_ornekleri: list[Ornek], tarz_ornekleri: 
         "YENİ ÖNERİ",
         _oneri_blogu(yeni),
         "",
-        "Bu öneri için kararını ve değerlendirme metnini JSON olarak ver.",
+        "Bu öneri için gerekçeni ve değerlendirme metnini JSON olarak ver.",
     ]
     return "\n".join(parcalar)
 
@@ -57,12 +63,11 @@ def _ornek_bloklari(ornekler: list[Ornek]) -> list[str]:
     satirlar = []
     # Küçük modeller en son okuduklarına daha çok ağırlık verir; en benzer örnek en sona.
     for ornek in reversed(ornekler):
-        satirlar += [
-            _oneri_blogu(ornek.oneri),
-            f"Karar: {ornek.oneri.onay_durumu}",
-            f"Değerlendirme: {ornek.oneri.degerlendirme}",
-            "",
-        ]
+        satirlar += [_oneri_blogu(ornek.oneri), f"Karar: {ornek.oneri.onay_durumu}"]
+        # Eski kalıp metinler gösterilmez; model onları kopyalıyor.
+        if ornek.ozgun:
+            satirlar.append(f"Değerlendirme: {ornek.oneri.degerlendirme}")
+        satirlar.append("")
     return satirlar
 
 

@@ -42,7 +42,7 @@ def test_kontrol_eksik_modeli_bildirir(ayar_dosyasi, sahte_ollama, capsys):
 
 
 def test_kor_test_yeni_tarz_ornekleri_cevaplari_gizleyerek_dener(ayar_dosyasi, ayarlar, sahte_ollama, capsys):
-    sahte_ollama.sohbet_cevabi = {"onay_durumu": "Öneri", "degerlendirme": "Taslak metin."}
+    sahte_ollama.sohbet_cevabi = {"gerekce": "Geçerli öneri", "degerlendirme": "Taslak metin."}
 
     assert main(["--ayarlar", str(ayar_dosyasi), "kor-test"]) == 0
 
@@ -69,6 +69,8 @@ def test_kor_test_yeni_tarz_ornekleri_cevaplari_gizleyerek_dener(ayar_dosyasi, a
         (6, "Öneri", "Öneri", "Evet"),
         (7, "Öneri Değil", "Öneri", "Hayır"),
     ]
+    assert tablo[0][14] == "Yapay Zekânın Gerekçesi"
+    assert tablo[1][14] == "Geçerli öneri"
 
 
 def test_kor_test_adet_ile_sadece_en_yenileri_dener(ayar_dosyasi, sahte_ollama):
@@ -90,6 +92,7 @@ def test_kor_test_gecersiz_cevabi_rapora_yazip_devam_eder(ayar_dosyasi, ayarlar,
 def test_degerlendir_bekleyen_satir(ayar_dosyasi, capsys):
     assert main(["--ayarlar", str(ayar_dosyasi), "degerlendir", "9"]) == 0
     cikti = capsys.readouterr().out
+    assert "Gerekçe      : Geçerli öneri" in cikti
     assert "Onay Durumu  : Öneri" in cikti
     assert "Durum        : Devam Ediyor" in cikti
     assert "Ekibin yazdığı" not in cikti

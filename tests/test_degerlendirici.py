@@ -1,6 +1,7 @@
 import pytest
 
 from oneri.degerlendirici import uygunsuz_ifadeler
+from oneri.istem import GEREKCELER
 from oneri.ollama import GecersizCevap, Ollama
 from oneri.uygulama import asistani_kur
 
@@ -23,11 +24,11 @@ def _oneri(asistan, satir):
 
 
 def test_durumu_onay_durumuna_gore_yazar(asistan, sahte_ollama):
-    sahte_ollama.sohbet_cevabi = {"onay_durumu": "Öneri Değil", "degerlendirme": "Rutin bakım işidir."}
+    sahte_ollama.sohbet_cevabi = {"gerekce": "Rutin iş", "degerlendirme": "Rutin bakım işidir."}
     taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
-    assert (taslak.onay_durumu, taslak.durum) == ("Öneri Değil", "Red Edildi")
+    assert (taslak.gerekce, taslak.onay_durumu, taslak.durum) == ("Rutin iş", "Öneri Değil", "Red Edildi")
 
-    sahte_ollama.sohbet_cevabi = {"onay_durumu": "Öneri", "degerlendirme": " Uygulanabilir. "}
+    sahte_ollama.sohbet_cevabi = {"gerekce": "Geçerli öneri", "degerlendirme": " Uygulanabilir. "}
     taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
     assert (taslak.onay_durumu, taslak.durum, taslak.degerlendirme) == ("Öneri", "Devam Ediyor", "Uygulanabilir.")
 
@@ -61,13 +62,13 @@ def test_haric_tutulan_satirin_cevabi_gorunmez(asistan, sahte_ollama):
 
 
 def test_gecersiz_karar_reddedilir(asistan, sahte_ollama):
-    sahte_ollama.sohbet_cevabi = {"onay_durumu": "Belki", "degerlendirme": "Bilemedim."}
+    sahte_ollama.sohbet_cevabi = {"gerekce": "Belki", "degerlendirme": "Bilemedim."}
     with pytest.raises(GecersizCevap):
         asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
 
 
 def test_bos_degerlendirme_reddedilir(asistan, sahte_ollama):
-    sahte_ollama.sohbet_cevabi = {"onay_durumu": "Öneri", "degerlendirme": "  "}
+    sahte_ollama.sohbet_cevabi = {"gerekce": "Geçerli öneri", "degerlendirme": "  "}
     with pytest.raises(GecersizCevap):
         asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
 
@@ -79,8 +80,8 @@ def test_uygunsuz_ifade_bulunur():
 
 def test_uygunsuz_ifade_bir_kez_duzelttirilir(asistan, sahte_ollama):
     sahte_ollama.sohbet_cevabi = [
-        {"onay_durumu": "Öneri", "degerlendirme": "Özürlü çalışanlar için erişimi artırır."},
-        {"onay_durumu": "Öneri", "degerlendirme": "Engelli çalışanlar için erişimi artırır."},
+        {"gerekce": "Geçerli öneri", "degerlendirme": "Özürlü çalışanlar için erişimi artırır."},
+        {"gerekce": "Geçerli öneri", "degerlendirme": "Engelli çalışanlar için erişimi artırır."},
     ]
     taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
 
@@ -90,7 +91,19 @@ def test_uygunsuz_ifade_bir_kez_duzelttirilir(asistan, sahte_ollama):
 
 
 def test_duzeltmeden_sonra_da_kullanirsa_taslak_reddedilir(asistan, sahte_ollama):
-    sahte_ollama.sohbet_cevabi = {"onay_durumu": "Öneri", "degerlendirme": "Özürlü çalışanlar için uygundur."}
+    sahte_ollama.sohbet_cevabi = {"gerekce": "Geçerli öneri", "degerlendirme": "Özürlü çalışanlar için uygundur."}
     with pytest.raises(GecersizCevap, match="uygunsuz ifade"):
         asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
     assert len(sahte_ollama.sohbetler()) == 2
+
+
+def test_eski_kalip_metinler_istemde_gosterilmez(asistan, sahte_ollama):
+    asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
+    kullanici = _kullanici_mesaji(sahte_ollama)
+    assert "incelemeye devam edilecektir" not in kullanici  # kalıp metin
+    assert "Kompresör hatlarında" in kullanici or "Bobin değişiminde" in kullanici  # öneri yine görünür
+
+
+def test_her_gerekce_bir_onay_durumuna_karsilik_gelir():
+    assert GEREKCELER["Geçerli öneri"] == "Öneri"
+    assert {onay for ad, onay in GEREKCELER.items() if ad != "Geçerli öneri"} == {"Öneri Değil"}

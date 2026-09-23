@@ -23,7 +23,7 @@ def test_sohbet_istegi_cevabi_semaya_zorlar(sahte_ollama):
     cevap = Ollama(sahte_ollama.adres).json_sohbet(
         "qwen2.5", [{"role": "user", "content": "merhaba"}], sema, {"num_ctx": 8192}
     )
-    assert cevap["onay_durumu"] == "Öneri"
+    assert cevap["gerekce"] == "Geçerli öneri"
     _, govde = sahte_ollama.istekler[-1]
     assert govde["format"] == sema
     assert govde["stream"] is False
