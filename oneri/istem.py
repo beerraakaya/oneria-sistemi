@@ -4,13 +4,13 @@ from .excel import ONERI, ONERI_DEGIL, Oneri
 from .hafiza import Ornek
 
 # Model önce hangi kurala uyduğunu seçer; Onay Durumu bu seçimden çıkarılır.
-# Adlar kurallar.md'deki başlıklarla aynı olmalı.
+# Adlar kurallar.md'deki başlıklarla aynı olmalı. "Mükerrer" bilerek yok: bir uygulamanın
+# fabrikada zaten olup olmadığını model bilemez, benzer örnek gördüğü için yanlış seçiyordu.
 GEREKCELER = {
     "Geçerli öneri": ONERI,
     "Somut çözüm yok": ONERI_DEGIL,
     "Rutin iş": ONERI_DEGIL,
     "Yasal/İSG yükümlülüğü": ONERI_DEGIL,
-    "Mükerrer": ONERI_DEGIL,
     "Politika/sosyal hak talebi": ONERI_DEGIL,
 }
 

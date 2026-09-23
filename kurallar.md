@@ -10,13 +10,14 @@
 Önce önerilen durumun **ne yapmayı önerdiğini** tek cümleyle belirle. Sonra sırayla şu soruları sor; ilk "evet" cevabı gerekçeyi belirler:
 
 1. **Somut çözüm yok:** Önerilen durum boş mu, sadece sorunu tekrar mı ediyor ya da ne yapılacağı belli değil mi?
-2. **Rutin iş:** Önerilen şey zaten yapılması gereken bir iş mi? Temizlik, düzenleme, bakım, kontrol, kalibrasyon, arızalı ya da aşınmış parçanın onarımı veya değişimi, standart toplama/ayrıştırma yeri koymak, mevcut bir kuralın ya da standardın uygulanması, yeni bir makinenin devreye alma eksikliği ve başka bir birimin zaten sorumlu olduğu konular bu kapsamdadır.
+2. **Rutin iş:** Önerilen şey zaten yapılması gereken bir iş mi? Temizlik, yıkatma, düzenleme, bakım, periyodik kontrol, kalibrasyon, arızalı, hasarlı ya da aşınmış parçanın tamiri veya yenisiyle değiştirilmesi, toplama kutusu ya da ayrıştırma noktası koymak, mevcut bir kuralın ya da standardın uygulanması, yeni bir makinenin devreye alma eksikliği ve başka bir birimin zaten sorumlu olduğu konular bu kapsamdadır. Önerilen şey "kontrol edilsin, temizlensin, tamir edilsin, değiştirilsin, konulsun" türündeyse ve yeni bir yöntem, aparat ya da tasarım içermiyorsa rutin iştir.
 3. **Politika/sosyal hak talebi:** Önerilen şey çalışanlar için ekstra bir hak, imkân, eşya, ikram ya da hediye talebi mi? Bu tür talepler süreci iyileştirmediği için öneri sayılmaz; İK'nın ayrıca değerlendirebileceği yazılır.
 4. **Yasal/İSG yükümlülüğü:** Eksik koruyucu gibi mevzuat ya da temel güvenlik gereği hemen yapılması zorunlu bir iş mi? Bunlar öneri sisteminde bekletilmez; İSG ve ilgili birimin doğrudan aksiyon alması gerektiği yazılır.
-5. **Mükerrer:** Aynı ya da çok benzer bir uygulama veya öneri zaten var mı, ya da yürüyen bir projenin alt aksiyonu olarak ele alınabilir mi?
-6. **Geçerli öneri:** Hiçbiri değilse ve önerilen şey mevcut yöntemi değiştiren bir iyileştirme fikriyse (yeni aparat, yöntem, malzeme, tasarım, süreç değişikliği; hız, kalite, maliyet, enerji, güvenlik ya da çevre kazancı) karar **"Öneri"**dir. Öneri sahibinin fayda ya da maliyet hesabı yapmamış olması ret nedeni değildir; deneme, numune ya da pilot gerektirmesi de öneri olmasını engellemez.
+5. **Geçerli öneri:** Hiçbiri değilse ve önerilen şey mevcut yöntemi değiştiren bir iyileştirme fikriyse (yeni aparat, yöntem, malzeme, tasarım, süreç değişikliği; hız, kalite, maliyet, enerji, güvenlik ya da çevre kazancı) karar **"Öneri"**dir. Öneri sahibinin fayda ya da maliyet hesabı yapmamış olması ret nedeni değildir; deneme, numune ya da pilot gerektirmesi de öneri olmasını engellemez.
 
 "Geçerli öneri" dışındaki her gerekçe **"Öneri Değil"** demektir.
+
+Benzer geçmiş önerilerin gösterilmesi, yeni önerinin mükerrer olduğu anlamına gelmez; sadece ekibin benzer konularda nasıl karar verdiğini gösterir. Mükerrer öneriler ekip tarafından kontrolde ayrıca yakalanır.
 
 ## 2. Durum
 
