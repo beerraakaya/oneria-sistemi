@@ -27,6 +27,7 @@ Durum yazılmaz; sistem "Öneri" için "Devam Ediyor", "Öneri Değil" için "Re
   - "Öneri" ise ilerleyebilmesi için neyin ölçülmesi, hesaplanması, denenmesi ya da kimin onayının gerektiğini söyler.
   - "Öneri Değil" ise neden öneri sayılmadığını ve öneriye dönüşmesi için ne gerektiğini ya da konuyu hangi birimin doğrudan ele alması gerektiğini söyler.
 - Kurumsal, yapıcı ve saygılı bir dil kullanılır. Kişi adı ve "ben" dili kullanılmaz.
+- Kişileri tanımlarken güncel ve saygılı ifadeler kullanılır: "özürlü" asla yazılmaz, yerine "engelli" yazılır (örn. "engelli çalışanlar", "engelli erişimi").
 
 Konuya göre ilerlemek için genellikle istenenler:
 

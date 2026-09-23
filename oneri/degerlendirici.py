@@ -1,5 +1,7 @@
 """Bir öneri için Onay Durumu, Durum ve Değerlendirme taslağı üretir."""
 
+import json
+import re
 from dataclasses import dataclass
 
 from .ayarlar import Ayarlar
@@ -37,18 +39,62 @@ class Degerlendirici:
             if ornek.oneri.satir not in tarzdaki_satirlar
         ][: self._ayarlar.karar_ornegi_sayisi]
 
+        mesajlar = [
+            {"role": "system", "content": self._sistem},
+            {"role": "user", "content": kullanici_mesaji(oneri, karar, tarz)},
+        ]
+        cevap = self._sor(mesajlar)
+        uygunsuz = uygunsuz_ifadeler(cevap["degerlendirme"])
+        if uygunsuz:
+            # Bir kez düzelttirilir; yine kullanırsa taslak hiç kabul edilmez.
+            mesajlar += [
+                {"role": "assistant", "content": json.dumps(cevap, ensure_ascii=False)},
+                {"role": "user", "content": _duzeltme_istegi(uygunsuz)},
+            ]
+            cevap = self._sor(mesajlar)
+            uygunsuz = uygunsuz_ifadeler(cevap["degerlendirme"])
+            if uygunsuz:
+                raise GecersizCevap(
+                    f"Model uygunsuz ifade kullanmayı sürdürdü: {', '.join(uygunsuz)}"
+                )
+        onay = cevap["onay_durumu"]
+        return Taslak(onay, BASLANGIC_DURUMU[onay], cevap["degerlendirme"])
+
+    def _sor(self, mesajlar: list[dict]) -> dict:
         cevap = self._ollama.json_sohbet(
             self._ayarlar.dil_modeli,
-            [
-                {"role": "system", "content": self._sistem},
-                {"role": "user", "content": kullanici_mesaji(oneri, karar, tarz)},
-            ],
+            mesajlar,
             CEVAP_SEMASI,
             {"temperature": self._ayarlar.sicaklik, "num_ctx": self._ayarlar.baglam_uzunlugu},
         )
-
         onay = cevap.get("onay_durumu")
         metin = str(cevap.get("degerlendirme") or "").strip()
         if onay not in BASLANGIC_DURUMU or not metin:
             raise GecersizCevap(f"Modelin cevabı beklenen biçimde değil: {cevap}")
-        return Taslak(onay, BASLANGIC_DURUMU[onay], metin)
+        return {"onay_durumu": onay, "degerlendirme": metin}
+
+
+# Değerlendirmede kullanılmayacak ifadeler ve yerine kullanılacaklar.
+# "sakat" bilerek yok: İSG metinlerinde "sakatlanma riski" doğru bir ifadedir.
+UYGUNSUZ_IFADELER = {"özürlü": "engelli"}
+
+
+def uygunsuz_ifadeler(metin: str) -> list[str]:
+    """Metinde geçen uygunsuz ifadeleri (ekleriyle birlikte, örn. "özürlüler") döndürür."""
+    bulunan = []
+    for ifade in UYGUNSUZ_IFADELER:
+        bulunan += re.findall(rf"\b{ifade}\w*", metin, flags=re.IGNORECASE)
+    return bulunan
+
+
+def _duzeltme_istegi(uygunsuz: list[str]) -> str:
+    yerine = "; ".join(
+        f"'{ifade}' yerine '{UYGUNSUZ_IFADELER[kok]}'"
+        for kok in UYGUNSUZ_IFADELER
+        for ifade in uygunsuz
+        if ifade.casefold().startswith(kok)
+    )
+    return (
+        f"Değerlendirmede uygun olmayan bir ifade kullandın: {yerine} kullanılmalı. "
+        "Kararı değiştirmeden metni yeniden yaz ve cevabı aynı JSON biçiminde ver."
+    )

@@ -1,5 +1,6 @@
 import pytest
 
+from oneri.degerlendirici import uygunsuz_ifadeler
 from oneri.ollama import GecersizCevap, Ollama
 from oneri.uygulama import asistani_kur
 
@@ -69,3 +70,27 @@ def test_bos_degerlendirme_reddedilir(asistan, sahte_ollama):
     sahte_ollama.sohbet_cevabi = {"onay_durumu": "Öneri", "degerlendirme": "  "}
     with pytest.raises(GecersizCevap):
         asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
+
+
+def test_uygunsuz_ifade_bulunur():
+    assert uygunsuz_ifadeler("Özürlü çalışanlar ve özürlülere yönelik rampa") == ["Özürlü", "özürlülere"]
+    assert uygunsuz_ifadeler("Engelli erişimi için rampa; sakatlanma riski azalır.") == []
+
+
+def test_uygunsuz_ifade_bir_kez_duzelttirilir(asistan, sahte_ollama):
+    sahte_ollama.sohbet_cevabi = [
+        {"onay_durumu": "Öneri", "degerlendirme": "Özürlü çalışanlar için erişimi artırır."},
+        {"onay_durumu": "Öneri", "degerlendirme": "Engelli çalışanlar için erişimi artırır."},
+    ]
+    taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
+
+    assert taslak.degerlendirme == "Engelli çalışanlar için erişimi artırır."
+    duzeltme = sahte_ollama.sohbetler()[-1]["messages"][-1]["content"]
+    assert "'Özürlü' yerine 'engelli'" in duzeltme
+
+
+def test_duzeltmeden_sonra_da_kullanirsa_taslak_reddedilir(asistan, sahte_ollama):
+    sahte_ollama.sohbet_cevabi = {"onay_durumu": "Öneri", "degerlendirme": "Özürlü çalışanlar için uygundur."}
+    with pytest.raises(GecersizCevap, match="uygunsuz ifade"):
+        asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
+    assert len(sahte_ollama.sohbetler()) == 2

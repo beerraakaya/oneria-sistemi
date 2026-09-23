@@ -32,7 +32,8 @@ class SahteOllama:
         self.istekler: list[tuple[str, dict]] = []
         self.modeller = ["qwen2.5:latest", "bge-m3:latest"]
         # Sohbet isteğine verilecek cevap: sözlük JSON'a çevrilir, metin olduğu gibi gönderilir.
-        self.sohbet_cevabi: dict | str = {
+        # Liste verilirse her istekte sıradaki cevap kullanılır, sonuncusu tekrarlanır.
+        self.sohbet_cevabi: dict | str | list = {
             "onay_durumu": "Öneri",
             "degerlendirme": "Uygulanabilir bir iyileştirmedir. Maliyet ve fayda hesaplanmalıdır.",
         }
@@ -73,6 +74,8 @@ def sahte_ollama():
                 return self._cevap(200, {"embeddings": sahte_gomucu(govde["input"])})
             if self.path == "/api/chat":
                 cevap = durum.sohbet_cevabi
+                if isinstance(cevap, list):
+                    cevap = cevap.pop(0) if len(cevap) > 1 else cevap[0]
                 icerik = cevap if isinstance(cevap, str) else json.dumps(cevap, ensure_ascii=False)
                 return self._cevap(200, {"message": {"role": "assistant", "content": icerik}, "done": True})
             self._cevap(404, {"error": "not found"})
