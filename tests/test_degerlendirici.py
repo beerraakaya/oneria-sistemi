@@ -187,3 +187,15 @@ def test_celiski_surerse_taslak_uyariyla_tutulur(asistan, sahte_ollama):
     assert len(sahte_ollama.sohbetler()) == 2
     assert taslak.onay_durumu == "Öneri Değil"
     assert taslak.gerekce == "Rutin iş (uyarı: metin kararla çelişebilir: Öneri niteliğindedir)"
+
+
+def test_bozuk_cevapta_bir_kez_daha_yuksek_sicaklikla_denenir(asistan, sahte_ollama):
+    sahte_ollama.sohbet_cevabi = [
+        '{"onerilen_sey": "aynı aynı aynı aynı',  # döngüye girip kesilmiş cevap
+        {"onerilen_sey": "x", "gerekce": "Geçerli öneri", "degerlendirme": "Uygulanabilir."},
+    ]
+    taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
+
+    sohbetler = sahte_ollama.sohbetler()
+    assert [s["options"]["temperature"] for s in sohbetler] == [0.0, 0.3]
+    assert taslak.degerlendirme == "Uygulanabilir."

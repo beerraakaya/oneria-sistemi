@@ -77,12 +77,20 @@ class Degerlendirici:
         return Taslak(onay, BASLANGIC_DURUMU[onay], cevap["degerlendirme"], gerekce, cevap["onerilen_sey"])
 
     def _sor(self, mesajlar: list[dict], sema: dict) -> dict:
+        try:
+            return self._sor_bir_kez(mesajlar, sema, self._ayarlar.sicaklik)
+        except GecersizCevap:
+            # Sıcaklık 0'da model bazı önerilerde hep aynı döngüye giriyor; biraz
+            # rastgelelik döngüyü kırar. Yine bozuksa hata yukarı iletilir.
+            return self._sor_bir_kez(mesajlar, sema, self._ayarlar.sicaklik + 0.3)
+
+    def _sor_bir_kez(self, mesajlar: list[dict], sema: dict, sicaklik: float) -> dict:
         cevap = self._ollama.json_sohbet(
             self._ayarlar.dil_modeli,
             mesajlar,
             sema,
             {
-                "temperature": self._ayarlar.sicaklik,
+                "temperature": sicaklik,
                 "seed": self._ayarlar.tohum,
                 "num_ctx": self._ayarlar.baglam_uzunlugu,
                 "num_predict": self._ayarlar.en_fazla_token,
