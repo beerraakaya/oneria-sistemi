@@ -85,6 +85,7 @@ class Degerlendirici:
                 "temperature": self._ayarlar.sicaklik,
                 "seed": self._ayarlar.tohum,
                 "num_ctx": self._ayarlar.baglam_uzunlugu,
+                "num_predict": self._ayarlar.en_fazla_token,
             },
         )
         gerekce = cevap.get("gerekce")

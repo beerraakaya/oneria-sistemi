@@ -24,6 +24,9 @@ class Ayarlar:
     # 0: aynı talimata her seferinde aynı cevap; testler karşılaştırılabilir olur.
     sicaklik: float = 0.0
     tohum: int = 42
+    # Modelin bir cevapta yazabileceği en fazla token. Sınır yoksa model döngüye girip
+    # dakikalarca aynı şeyi yazabiliyor; normal bir cevap 300 tokeni geçmiyor.
+    en_fazla_token: int = 800
 
     # Karar için gösterilecek benzer geçmiş öneri sayısı.
     karar_ornegi_sayisi: int = 6

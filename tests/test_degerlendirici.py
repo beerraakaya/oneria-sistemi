@@ -48,6 +48,7 @@ def test_istemde_yeni_oneri_kurallar_ve_ornekler_var(asistan, sahte_ollama, ayar
         "temperature": 0.0,
         "seed": ayarlar.tohum,
         "num_ctx": ayarlar.baglam_uzunlugu,
+        "num_predict": ayarlar.en_fazla_token,
     }
 
 
