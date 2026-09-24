@@ -5,11 +5,15 @@ from oneri.istem import GEREKCELER
 from oneri.ollama import GecersizCevap, Ollama
 from oneri.uygulama import asistani_kur
 
-from yardimci import YENI_TARZ_OLUMLU
+from yardimci import YENI_TARZ_OLUMLU, YENI_TARZ_OLUMSUZ
 
 
-def _kullanici_mesaji(sahte_ollama) -> str:
-    return sahte_ollama.sohbetler()[-1]["messages"][1]["content"]
+def _karar(gerekce: str, onerilen_sey: str = "Basamaklara kaymaz bant yapıştırmak.") -> dict:
+    return {"onerilen_sey": onerilen_sey, "gerekce": gerekce}
+
+
+def _metin(gerekce: str, degerlendirme: str) -> dict:
+    return {"gerekce": gerekce, "degerlendirme": degerlendirme}
 
 
 @pytest.fixture
@@ -23,26 +27,45 @@ def _oneri(asistan, satir):
     return next(o for o in asistan.oneriler if o.satir == satir)
 
 
-def test_durumu_onay_durumuna_gore_yazar(asistan, sahte_ollama):
-    sahte_ollama.sohbet_cevabi = {"gerekce": "Rutin iş", "degerlendirme": "Rutin bakım işidir."}
+def test_once_karar_sonra_karar_belliyken_metin_istenir(asistan, sahte_ollama):
+    sahte_ollama.sohbet_cevabi = [
+        _karar("Rutin iş"),
+        _metin("Rutin iş", "Aşınan bantların yenilenmesi rutin bakım işidir."),
+    ]
     taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
-    assert (taslak.gerekce, taslak.onay_durumu, taslak.durum) == ("Rutin iş", "Öneri Değil", "Red Edildi")
 
-    sahte_ollama.sohbet_cevabi = {"gerekce": "Geçerli öneri", "degerlendirme": " Uygulanabilir. "}
+    karar, metin = sahte_ollama.sohbetler()
+    assert list(karar["format"]["properties"]) == ["onerilen_sey", "gerekce"]
+    assert karar["format"]["properties"]["gerekce"]["enum"] == list(GEREKCELER)
+    assert karar["messages"][1]["content"].startswith("EKİBİN BENZER")
+    assert "KARAR adımı" in karar["messages"][1]["content"]
+
+    # Metin adımında karar belli; yalnızca o karara uyan gerekçeler seçilebilir.
+    assert 'kararı "Öneri Değil" olarak belirlendi' in metin["messages"][1]["content"]
+    assert "Geçerli öneri" not in metin["format"]["properties"]["gerekce"]["enum"]
+
+    assert (taslak.onay_durumu, taslak.durum, taslak.gerekce) == ("Öneri Değil", "Red Edildi", "Rutin iş")
+    assert taslak.degerlendirme == "Aşınan bantların yenilenmesi rutin bakım işidir."
+    assert taslak.onerilen_sey == "Basamaklara kaymaz bant yapıştırmak."
+
+
+def test_oneri_karari_devam_ediyor_yazar(asistan, sahte_ollama):
+    sahte_ollama.sohbet_cevabi = [_karar("Geçerli öneri"), _metin("Geçerli öneri", " Uygulanabilir. ")]
     taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
     assert (taslak.onay_durumu, taslak.durum, taslak.degerlendirme) == ("Öneri", "Devam Ediyor", "Uygulanabilir.")
+    assert sahte_ollama.sohbetler()[1]["format"]["properties"]["gerekce"]["enum"] == ["Geçerli öneri"]
 
 
-def test_istemde_yeni_oneri_kurallar_ve_ornekler_var(asistan, sahte_ollama, ayarlar):
+def test_istemde_kurallar_yeni_oneri_ve_ekibin_degerlendirmeleri_var(asistan, sahte_ollama, ayarlar):
     asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
-    sohbet = sahte_ollama.sohbetler()[-1]
+    sohbet = sahte_ollama.sohbetler()[0]
     sistem, kullanici = sohbet["messages"][0]["content"], sohbet["messages"][1]["content"]
 
     assert "Rutin bakım işleri öneri sayılmaz." in sistem
+    assert "Ekip gibi bak" in sistem
     assert "YENİ ÖNERİ" in kullanici
-    assert kullanici.rstrip().endswith("JSON olarak ver.")
     assert "Basamaklara yeni kaymaz bant" in kullanici
-    assert YENI_TARZ_OLUMLU in kullanici
+    assert YENI_TARZ_OLUMLU in kullanici and YENI_TARZ_OLUMSUZ in kullanici
     assert sohbet["model"] == ayarlar.dil_modeli
     assert sohbet["options"] == {
         "temperature": 0.0,
@@ -52,30 +75,51 @@ def test_istemde_yeni_oneri_kurallar_ve_ornekler_var(asistan, sahte_ollama, ayar
     }
 
 
+def test_yalnizca_ekibin_kendi_yazdigi_degerlendirmeler_gosterilir(asistan, sahte_ollama):
+    asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
+    kullanici = sahte_ollama.sohbetler()[0]["messages"][1]["content"]
+    assert "incelemeye devam edilecektir" not in kullanici  # eski kalıp metin
+    assert "Kompresör hatlarında" not in kullanici  # kalıp metinli kayıt hiç gösterilmez
+
+
 def test_tuzla_test_kaydi_ve_kisi_adlari_isteme_girmez(asistan, sahte_ollama):
     asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
-    kullanici = _kullanici_mesaji(sahte_ollama)
-    assert "Makaralar ambalajsız" not in kullanici  # Tuzla
-    assert "denene" not in kullanici  # test kaydı
-    assert "Test Kişi" not in kullanici
-    assert "Sorumlu Kişi" not in kullanici
+    for sohbet in sahte_ollama.sohbetler():
+        kullanici = sohbet["messages"][1]["content"]
+        assert "Makaralar ambalajsız" not in kullanici  # Tuzla
+        assert "denene" not in kullanici  # test kaydı
+        assert "Test Kişi" not in kullanici
+        assert "Sorumlu Kişi" not in kullanici
 
 
 def test_haric_tutulan_satirin_cevabi_gorunmez(asistan, sahte_ollama):
     asistan.degerlendirici.degerlendir(_oneri(asistan, 6), haric_satir=6)
-    assert YENI_TARZ_OLUMLU not in _kullanici_mesaji(sahte_ollama)
+    for sohbet in sahte_ollama.sohbetler():
+        assert YENI_TARZ_OLUMLU not in sohbet["messages"][1]["content"]
 
 
-def test_gecersiz_karar_reddedilir(asistan, sahte_ollama):
-    sahte_ollama.sohbet_cevabi = {"gerekce": "Belki", "degerlendirme": "Bilemedim."}
+def test_gecersiz_gerekce_reddedilir(asistan, sahte_ollama):
+    sahte_ollama.sohbet_cevabi = _karar("Belki")
     with pytest.raises(GecersizCevap):
         asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
 
 
 def test_bos_degerlendirme_reddedilir(asistan, sahte_ollama):
-    sahte_ollama.sohbet_cevabi = {"gerekce": "Geçerli öneri", "degerlendirme": "  "}
+    sahte_ollama.sohbet_cevabi = [_karar("Geçerli öneri"), _metin("Geçerli öneri", "  ")]
     with pytest.raises(GecersizCevap):
         asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
+
+
+def test_bozuk_cevapta_bir_kez_daha_yuksek_sicaklikla_denenir(asistan, sahte_ollama):
+    sahte_ollama.sohbet_cevabi = [
+        '{"onerilen_sey": "aynı aynı aynı aynı',  # döngüye girip kesilmiş cevap
+        _karar("Geçerli öneri"),
+        _metin("Geçerli öneri", "Uygulanabilir."),
+    ]
+    taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
+
+    assert [s["options"]["temperature"] for s in sahte_ollama.sohbetler()] == [0.0, 0.3, 0.0]
+    assert taslak.degerlendirme == "Uygulanabilir."
 
 
 def test_uygunsuz_ifade_bulunur():
@@ -85,8 +129,9 @@ def test_uygunsuz_ifade_bulunur():
 
 def test_uygunsuz_ifade_bir_kez_duzelttirilir(asistan, sahte_ollama):
     sahte_ollama.sohbet_cevabi = [
-        {"gerekce": "Geçerli öneri", "degerlendirme": "Özürlü çalışanlar için erişimi artırır."},
-        {"gerekce": "Geçerli öneri", "degerlendirme": "Engelli çalışanlar için erişimi artırır."},
+        _karar("Geçerli öneri"),
+        _metin("Geçerli öneri", "Özürlü çalışanlar için erişimi artırır."),
+        _metin("Geçerli öneri", "Engelli çalışanlar için erişimi artırır."),
     ]
     taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
 
@@ -96,17 +141,13 @@ def test_uygunsuz_ifade_bir_kez_duzelttirilir(asistan, sahte_ollama):
 
 
 def test_duzeltmeden_sonra_da_kullanirsa_taslak_reddedilir(asistan, sahte_ollama):
-    sahte_ollama.sohbet_cevabi = {"gerekce": "Geçerli öneri", "degerlendirme": "Özürlü çalışanlar için uygundur."}
+    sahte_ollama.sohbet_cevabi = [
+        _karar("Geçerli öneri"),
+        _metin("Geçerli öneri", "Özürlü çalışanlar için uygundur."),
+    ]
     with pytest.raises(GecersizCevap, match="uygunsuz ifade"):
         asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
-    assert len(sahte_ollama.sohbetler()) == 2
-
-
-def test_eski_kalip_metinler_istemde_gosterilmez(asistan, sahte_ollama):
-    asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
-    kullanici = _kullanici_mesaji(sahte_ollama)
-    assert "incelemeye devam edilecektir" not in kullanici  # kalıp metin
-    assert "Kompresör hatlarında" in kullanici or "Bobin değişiminde" in kullanici  # öneri yine görünür
+    assert len(sahte_ollama.sohbetler()) == 3
 
 
 def test_her_gerekce_bir_onay_durumuna_karsilik_gelir():
@@ -114,48 +155,39 @@ def test_her_gerekce_bir_onay_durumuna_karsilik_gelir():
     assert {onay for ad, onay in GEREKCELER.items() if ad != "Geçerli öneri"} == {"Öneri Değil"}
 
 
-def test_karma_benzerler_guclu_ayniysa_karari_onlar_verir(asistan, sahte_ollama):
-    # 9. satıra en benzer 5 örneğin 4'ü "Öneri"; eşik 4 -> karar sabitlenir.
-    karma = KarmaDegerlendirici(asistan.hafiza, asistan.degerlendirici, adet=5, esik=4)
-    taslak = karma.degerlendir(_oneri(asistan, 9))
-
-    sohbet = sahte_ollama.sohbetler()[-1]
-    assert sohbet["format"]["properties"]["gerekce"]["enum"] == ["Geçerli öneri"]
-    assert 'kararı "Öneri" olarak belirlendi' in sohbet["messages"][1]["content"]
+def test_sabit_kararda_karar_adimi_atlanir(asistan, sahte_ollama):
+    sahte_ollama.sohbet_cevabi = _metin("Geçerli öneri", "Uygulanabilir.")
+    taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9), sabit_onay="Öneri")
+    assert len(sahte_ollama.sohbetler()) == 1
     assert taslak.onay_durumu == "Öneri"
-    assert taslak.gerekce == "Geçerli öneri - karar: benzer öneriler 4/5"
-
-
-def test_karma_benzerler_bolunmusse_karari_model_verir(asistan, sahte_ollama):
-    sahte_ollama.sohbet_cevabi = {"gerekce": "Rutin iş", "degerlendirme": "Rutin bakım işidir."}
-    karma = KarmaDegerlendirici(asistan.hafiza, asistan.degerlendirici, adet=5, esik=5)
-    taslak = karma.degerlendir(_oneri(asistan, 9))
-
-    sohbet = sahte_ollama.sohbetler()[-1]
-    assert sohbet["format"]["properties"]["gerekce"]["enum"] == list(GEREKCELER)
-    assert "olarak belirlendi" not in sohbet["messages"][1]["content"]
-    assert taslak.onay_durumu == "Öneri Değil"
-    assert taslak.gerekce == "Rutin iş - karar: model (benzer öneriler bölünmüş: 4/5)"
 
 
 def test_sabit_karara_uymayan_gerekce_reddedilir(asistan, sahte_ollama):
-    sahte_ollama.sohbet_cevabi = {"gerekce": "Rutin iş", "degerlendirme": "Rutin bakım işidir."}
+    sahte_ollama.sohbet_cevabi = _metin("Rutin iş", "Rutin bakım işidir.")
     with pytest.raises(GecersizCevap):
         asistan.degerlendirici.degerlendir(_oneri(asistan, 9), sabit_onay="Öneri")
 
 
-def test_model_once_onerilen_seyi_ozetler(asistan, sahte_ollama):
-    sahte_ollama.sohbet_cevabi = {
-        "onerilen_sey": "Basamaklara kaymaz bant yapıştırmak.",
-        "gerekce": "Rutin iş",
-        "degerlendirme": "Aşınan bantın yenilenmesi rutin bakımdır.",
-    }
-    taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
+def test_karma_benzerler_guclu_ayniysa_karari_onlar_verir(asistan, sahte_ollama):
+    # 9. satıra en benzer 5 örneğin 4'ü "Öneri"; eşik 4 -> karar sabitlenir.
+    sahte_ollama.sohbet_cevabi = _metin("Geçerli öneri", "Uygulanabilir.")
+    karma = KarmaDegerlendirici(asistan.hafiza, asistan.degerlendirici, adet=5, esik=4)
+    taslak = karma.degerlendir(_oneri(asistan, 9))
 
-    sema = sahte_ollama.sohbetler()[-1]["format"]
-    assert list(sema["properties"])[:2] == ["onerilen_sey", "gerekce"]
-    assert taslak.onerilen_sey == "Basamaklara kaymaz bant yapıştırmak."
-    assert "Karar mevcut duruma değil, önerilen şeye göre verilir." in sahte_ollama.sohbetler()[-1]["messages"][0]["content"]
+    (sohbet,) = sahte_ollama.sohbetler()
+    assert sohbet["format"]["properties"]["gerekce"]["enum"] == ["Geçerli öneri"]
+    assert 'kararı "Öneri" olarak belirlendi' in sohbet["messages"][1]["content"]
+    assert taslak.gerekce == "Geçerli öneri - karar: benzer öneriler 4/5"
+
+
+def test_karma_benzerler_bolunmusse_karari_model_verir(asistan, sahte_ollama):
+    sahte_ollama.sohbet_cevabi = [_karar("Rutin iş"), _metin("Rutin iş", "Rutin bakım işidir.")]
+    karma = KarmaDegerlendirici(asistan.hafiza, asistan.degerlendirici, adet=5, esik=5)
+    taslak = karma.degerlendir(_oneri(asistan, 9))
+
+    assert len(sahte_ollama.sohbetler()) == 2
+    assert taslak.onay_durumu == "Öneri Değil"
+    assert taslak.gerekce == "Rutin iş - karar: model (benzer öneriler bölünmüş: 4/5)"
 
 
 def test_karar_celiskisi_bulunur():
@@ -171,8 +203,9 @@ def test_karar_celiskisi_bulunur():
 
 def test_kararla_celisen_metin_bir_kez_duzelttirilir(asistan, sahte_ollama):
     sahte_ollama.sohbet_cevabi = [
-        {"onerilen_sey": "x", "gerekce": "Rutin iş", "degerlendirme": "Öneri niteliğindedir ama bakım işidir."},
-        {"onerilen_sey": "x", "gerekce": "Rutin iş", "degerlendirme": "Aşınan bantın yenilenmesi rutin bakımdır."},
+        _karar("Rutin iş"),
+        _metin("Rutin iş", "Öneri niteliğindedir ama bakım işidir."),
+        _metin("Rutin iş", "Aşınan bantın yenilenmesi rutin bakımdır."),
     ]
     taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
 
@@ -182,20 +215,8 @@ def test_kararla_celisen_metin_bir_kez_duzelttirilir(asistan, sahte_ollama):
 
 
 def test_celiski_surerse_taslak_uyariyla_tutulur(asistan, sahte_ollama):
-    sahte_ollama.sohbet_cevabi = {"gerekce": "Rutin iş", "degerlendirme": "Öneri niteliğindedir."}
+    sahte_ollama.sohbet_cevabi = [_karar("Rutin iş"), _metin("Rutin iş", "Öneri niteliğindedir.")]
     taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
-    assert len(sahte_ollama.sohbetler()) == 2
+    assert len(sahte_ollama.sohbetler()) == 3
     assert taslak.onay_durumu == "Öneri Değil"
     assert taslak.gerekce == "Rutin iş (uyarı: metin kararla çelişebilir: Öneri niteliğindedir)"
-
-
-def test_bozuk_cevapta_bir_kez_daha_yuksek_sicaklikla_denenir(asistan, sahte_ollama):
-    sahte_ollama.sohbet_cevabi = [
-        '{"onerilen_sey": "aynı aynı aynı aynı',  # döngüye girip kesilmiş cevap
-        {"onerilen_sey": "x", "gerekce": "Geçerli öneri", "degerlendirme": "Uygulanabilir."},
-    ]
-    taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
-
-    sohbetler = sahte_ollama.sohbetler()
-    assert [s["options"]["temperature"] for s in sohbetler] == [0.0, 0.3]
-    assert taslak.degerlendirme == "Uygulanabilir."

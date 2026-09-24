@@ -28,10 +28,8 @@ class Ayarlar:
     # dakikalarca aynı şeyi yazabiliyor; normal bir cevap 300 tokeni geçmiyor.
     en_fazla_token: int = 800
 
-    # Karar için gösterilecek benzer geçmiş öneri sayısı.
-    karar_ornegi_sayisi: int = 6
-    # Yazım tarzı için gösterilecek yeni tarz örnek sayısı.
-    tarz_ornegi_sayisi: int = 4
+    # Modele gösterilen, ekibin kendi yazdığı en benzer değerlendirme sayısı.
+    ornek_sayisi: int = 8
     # 'kor-test --yontem komsu' için oylamaya katılan benzer öneri sayısı (tek sayı olmalı).
     komsu_sayisi: int = 7
     # Karma yöntemde: benzer önerilerden en az bu kadarı aynı kararı gösteriyorsa karar onlardan alınır.

@@ -58,10 +58,10 @@ Ekran kartı olmayan bir bilgisayarda her öneri birkaç dakika sürebilir. Test
 1. Excel'den yalnızca **Denizli** satırları okunur; Tuzla satırlarına dokunulmaz. Kişi adı sütunları hiç okunmaz.
 2. Kararı ve değerlendirmesi olan öneriler **kurumsal hafızayı** oluşturur. "deneme" gibi 40 karakterden kısa değerlendirmeler test kaydı sayılıp dışarıda bırakılır.
 3. Hafızadaki metinler ikiye ayrılır: ilk cümlesi en az 3 kayıtta aynen geçenler **eski kalıp** metinlerdir, diğerleri **yeni tarzdır**.
-4. Yeni bir öneri geldiğinde `bge-m3` ile anlamca en benzer eski öneriler bulunur:
-   - **karar için** tüm hafızadan en benzer 6 öneri ve ekibin verdiği kararlar,
-   - **yazım tarzı için** yeni tarzdaki en benzer 4 değerlendirme.
-5. Model (`qwen2.5`) bu örneklere ve `kurallar.md` dosyasına bakarak "Öneri" ya da "Öneri Değil" kararı verir ve iki cümlelik bir değerlendirme yazar.
+4. Yeni bir öneri geldiğinde `bge-m3` ile anlamca en benzer eski öneriler bulunur. Modele yalnızca **ekibin kendi yazdığı** (yeni tarz) en benzer 8 değerlendirme, kararıyla birlikte gösterilir; böylece model ekibin benzer önerilerde neye bakıp ne dediğini görür.
+5. Değerlendirme iki adımda yapılır:
+   - **Karar:** model önerilen şeyi özetler ve `kurallar.md`'deki gerekçelerden birini seçer ("Geçerli öneri" ya da bir ret gerekçesi).
+   - **Metin:** karar belliyken, ekip gibi önce faydayı görüp iki cümlelik değerlendirmeyi yazar.
 6. Durum karara göre yazılır: "Öneri" için "Devam Ediyor", "Öneri Değil" için "Red Edildi". Tamamlandı ve Uygulanamaz'ı ekip sonradan girer.
 
 `kurallar.md` yapay zekâya verilen talimattır; ekip olarak gözden geçirip düzenleyebilirsiniz.

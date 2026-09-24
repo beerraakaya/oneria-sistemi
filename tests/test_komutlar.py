@@ -46,11 +46,12 @@ def test_kor_test_yeni_tarz_ornekleri_cevaplari_gizleyerek_dener(ayar_dosyasi, a
 
     assert main(["--ayarlar", str(ayar_dosyasi), "kor-test"]) == 0
 
-    # Sadece yeni tarzdaki iki öneri test edilir ve hiçbiri kendi cevabını görmez.
+    # Sadece yeni tarzdaki iki öneri test edilir (öneri başına karar + metin) ve hiçbiri
+    # kendi cevabını görmez.
     sohbetler = sahte_ollama.sohbetler()
-    assert len(sohbetler) == 2
-    assert YENI_TARZ_OLUMLU not in sohbetler[0]["messages"][1]["content"]
-    assert YENI_TARZ_OLUMSUZ not in sohbetler[1]["messages"][1]["content"]
+    assert len(sohbetler) == 4
+    assert all(YENI_TARZ_OLUMLU not in s["messages"][1]["content"] for s in sohbetler[:2])
+    assert all(YENI_TARZ_OLUMSUZ not in s["messages"][1]["content"] for s in sohbetler[2:])
 
     cikti = capsys.readouterr().out
     assert "Ekiple aynı karar: 1 / 2 (%50)" in cikti
@@ -76,7 +77,7 @@ def test_kor_test_yeni_tarz_ornekleri_cevaplari_gizleyerek_dener(ayar_dosyasi, a
 def test_kor_test_adet_ile_sadece_en_yenileri_dener(ayar_dosyasi, sahte_ollama):
     assert main(["--ayarlar", str(ayar_dosyasi), "kor-test", "--adet", "1"]) == 0
     sohbetler = sahte_ollama.sohbetler()
-    assert len(sohbetler) == 1
+    assert len(sohbetler) == 2
     assert "Kartonların ayrı toplanması." in sohbetler[0]["messages"][1]["content"]
 
 
@@ -133,7 +134,8 @@ def test_kor_test_komsu_yontemi_modele_sormaz(ayar_dosyasi, ayarlar, sahte_ollam
 
 def test_kor_test_karma_yontemi(ayar_dosyasi, ayarlar, sahte_ollama):
     assert main(["--ayarlar", str(ayar_dosyasi), "kor-test", "--yontem", "karma"]) == 0
-    assert len(sahte_ollama.sohbetler()) == 2
+    # Örnek veride benzer öneriler hiçbir zaman 5/7 aynı değil; kararı model verir.
+    assert len(sahte_ollama.sohbetler()) == 4
     rapor = next(ayarlar.veri_klasoru.glob("kor_test_karma_*.xlsx"))
     ozet = {s[0]: s[1] for s in openpyxl.load_workbook(rapor)["Özet"].iter_rows(values_only=True)}
     assert ozet["Karar yöntemi"].startswith("karma:")

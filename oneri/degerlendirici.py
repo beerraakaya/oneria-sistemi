@@ -8,7 +8,14 @@ from dataclasses import dataclass
 from .ayarlar import Ayarlar
 from .excel import BASLANGIC_DURUMU, ONERI, ONERI_DEGIL, Oneri
 from .hafiza import Hafiza
-from .istem import GEREKCELER, cevap_semasi, kullanici_mesaji, sistem_mesaji
+from .istem import (
+    GEREKCELER,
+    karar_mesaji,
+    karar_semasi,
+    metin_mesaji,
+    metin_semasi,
+    sistem_mesaji,
+)
 from .ollama import GecersizCevap, Ollama
 
 
@@ -31,39 +38,44 @@ class Degerlendirici:
     def degerlendir(
         self, oneri: Oneri, haric_satir: int | None = None, sabit_onay: str | None = None
     ) -> Taslak:
-        """`haric_satir` verilirse o satır örnek olarak gösterilmez (kör test için).
+        """Önce karar verilir, sonra karar belliyken metin yazılır.
 
-        `sabit_onay` verilirse karar değişmez; model yalnızca gerekçeyi ve metni yazar.
+        `haric_satir` verilirse o satır örnek olarak gösterilmez (kör test için).
+        `sabit_onay` verilirse karar adımı atlanır; model yalnızca gerekçeyi ve metni yazar.
         """
-        tarz = self._hafiza.benzerler(
-            oneri, self._ayarlar.tarz_ornegi_sayisi, sadece_ozgun=True, haric_satir=haric_satir
+        # Yalnızca ekibin kendi yazdığı değerlendirmeler: model ekibin nasıl düşündüğünü görsün.
+        ornekler = self._hafiza.benzerler(
+            oneri, self._ayarlar.ornek_sayisi, sadece_ozgun=True, haric_satir=haric_satir
         )
-        tarzdaki_satirlar = {ornek.oneri.satir for ornek in tarz}
-        karar = [
-            ornek
-            for ornek in self._hafiza.benzerler(
-                oneri, self._ayarlar.karar_ornegi_sayisi + len(tarz), haric_satir=haric_satir
+
+        onerilen_sey = ""
+        onay = sabit_onay
+        if onay is None:
+            karar = self._sor(
+                [
+                    {"role": "system", "content": self._sistem},
+                    {"role": "user", "content": karar_mesaji(oneri, ornekler)},
+                ],
+                karar_semasi(),
             )
-            if ornek.oneri.satir not in tarzdaki_satirlar
-        ][: self._ayarlar.karar_ornegi_sayisi]
+            onay = GEREKCELER[karar["gerekce"]]
+            onerilen_sey = karar["onerilen_sey"]
 
         mesajlar = [
             {"role": "system", "content": self._sistem},
-            {"role": "user", "content": kullanici_mesaji(oneri, karar, tarz, sabit_onay)},
+            {"role": "user", "content": metin_mesaji(oneri, ornekler, onay)},
         ]
-        sema = cevap_semasi(sabit_onay)
+        sema = metin_semasi(onay)
         cevap = self._sor(mesajlar, sema)
-        onay = GEREKCELER[cevap["gerekce"]]
         uygunsuz = uygunsuz_ifadeler(cevap["degerlendirme"])
         celiski = karar_celiskileri(onay, cevap["degerlendirme"])
         if uygunsuz or celiski:
-            # Bir kez düzelttirilir; yine olursa taslak hiç kabul edilmez.
+            # Bir kez düzelttirilir; uygunsuz ifade yine olursa taslak hiç kabul edilmez.
             mesajlar += [
                 {"role": "assistant", "content": json.dumps(cevap, ensure_ascii=False)},
                 {"role": "user", "content": _duzeltme_istegi(uygunsuz, celiski, onay)},
             ]
             cevap = self._sor(mesajlar, sema)
-            onay = GEREKCELER[cevap["gerekce"]]
             uygunsuz = uygunsuz_ifadeler(cevap["degerlendirme"])
             if uygunsuz:
                 raise GecersizCevap(
@@ -74,7 +86,7 @@ class Degerlendirici:
         if celiski:
             # Taslak atılmaz, ekip kontrolünde dikkat çeksin diye işaretlenir.
             gerekce += f" (uyarı: metin kararla çelişebilir: {', '.join(celiski)})"
-        return Taslak(onay, BASLANGIC_DURUMU[onay], cevap["degerlendirme"], gerekce, cevap["onerilen_sey"])
+        return Taslak(onay, BASLANGIC_DURUMU[onay], cevap["degerlendirme"], gerekce, onerilen_sey)
 
     def _sor(self, mesajlar: list[dict], sema: dict) -> dict:
         try:
@@ -96,15 +108,13 @@ class Degerlendirici:
                 "num_predict": self._ayarlar.en_fazla_token,
             },
         )
-        gerekce = cevap.get("gerekce")
-        metin = str(cevap.get("degerlendirme") or "").strip()
-        if gerekce not in sema["properties"]["gerekce"]["enum"] or not metin:
+        alanlar = {ad: str(cevap.get(ad) or "").strip() for ad in sema["properties"]}
+        # "onerilen_sey" yalnızca raporda gösterilen bir tanı bilgisi; boş olabilir.
+        if alanlar["gerekce"] not in sema["properties"]["gerekce"]["enum"] or alanlar.get(
+            "degerlendirme"
+        ) == "":
             raise GecersizCevap(f"Modelin cevabı beklenen biçimde değil: {cevap}")
-        return {
-            "onerilen_sey": str(cevap.get("onerilen_sey") or "").strip(),
-            "gerekce": gerekce,
-            "degerlendirme": metin,
-        }
+        return alanlar
 
 
 class KomsuDegerlendirici:

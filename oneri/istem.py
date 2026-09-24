@@ -1,4 +1,8 @@
-"""Yapay zekâya gönderilen talimat ve örnek metinlerini hazırlar."""
+"""Yapay zekâya gönderilen talimat ve örnek metinlerini hazırlar.
+
+Değerlendirme iki adımda yapılır: önce karar (gerekçe seçimi), sonra karar belliyken metin.
+Karar belli olunca model eksik aramak yerine ekip gibi önce faydayı görüp metni yazıyor.
+"""
 
 from .excel import ONERI, ONERI_DEGIL, Oneri
 from .hafiza import Ornek
@@ -15,32 +19,39 @@ GEREKCELER = {
 }
 
 
-def cevap_semasi(sabit_onay: str | None = None) -> dict:
-    """Karar önceden verildiyse model yalnızca o karara uyan gerekçelerden seçebilir.
-
-    Alan sırası önemli: model önce önerilen şeyi özetler, sonra gerekçeyi seçer, en son metni yazar.
-    """
-    gerekceler = [g for g, onay in GEREKCELER.items() if sabit_onay in (None, onay)]
+def karar_semasi() -> dict:
+    """1. adım. Alan sırası önemli: model önce önerilen şeyi özetler, sonra gerekçeyi seçer."""
     return {
         "type": "object",
         "properties": {
             "onerilen_sey": {"type": "string"},
-            "gerekce": {"type": "string", "enum": gerekceler},
+            "gerekce": {"type": "string", "enum": list(GEREKCELER)},
+        },
+        "required": ["onerilen_sey", "gerekce"],
+    }
+
+
+def metin_semasi(onay: str) -> dict:
+    """2. adım. Karar belli; model yalnızca o karara uyan gerekçelerden seçebilir."""
+    return {
+        "type": "object",
+        "properties": {
+            "gerekce": {"type": "string", "enum": [g for g, o in GEREKCELER.items() if o == onay]},
             "degerlendirme": {"type": "string"},
         },
-        "required": ["onerilen_sey", "gerekce", "degerlendirme"],
+        "required": ["gerekce", "degerlendirme"],
     }
 
 
 _SISTEM = f"""Sen bir fabrikanın öneri sistemi ekibine yardım eden bir asistansın. Çalışanların gönderdiği iyileştirme önerileri için taslak değerlendirme yazarsın; son kararı ekip verir.
 
-Görevin:
-1. Önce "Önerilen durum"un ne yapmayı önerdiğini tek cümleyle yaz (onerilen_sey). Karar mevcut duruma değil, önerilen şeye göre verilir.
-2. Sonra önerilen şeyi aşağıdaki kurallarla karşılaştır ve hangi gerekçeye uyduğunu seç: {", ".join(f'"{g}"' for g in GEREKCELER)}. "Geçerli öneri" dışındaki her gerekçe "{ONERI_DEGIL}" demektir. Ekibin benzer önerilerde verdiği kararlara da bak.
-3. En son ekibin yazım örneklerindeki gibi sade ve kısa, iki cümlelik bir değerlendirme yaz. Önerinin kendi içeriğinden (makine, malzeme, süreç adı) somut olarak bahset ama uzun gereklilik listeleri yapma: en fazla 2-3 gereklilik say, "Ayrıca" ile üçüncü bir cümle ekleme. Kalıp cümle kullanma; "Öneri niteliğindedir" gibi genel bir girişle başlama.
-4. Metin seçtiğin gerekçeyle tutarlı olmalı: "Geçerli öneri" dışındaki bir gerekçe seçtiysen metin önerinin neden öneri sayılmadığını söyler, önerinin değerli olduğunu anlatmaz.
+Ekip gibi bak: önce önerinin sağlayabileceği faydayı ve amacını gör, sonra kararını ver. Öneri sahibini eleştiren ya da eksik arayan bir dil kullanma. Ekibin benzer önerilerde yazdığı değerlendirmeler sana nasıl düşündüklerini gösterir; onlara göre davran.
 
-Cevabı yalnızca JSON olarak ver: {{"onerilen_sey": "...", "gerekce": "...", "degerlendirme": "..."}}
+Bir öneri iki adımda değerlendirilir:
+- KARAR adımında "Önerilen durum"un ne yapmayı önerdiğini tek cümleyle yazarsın (onerilen_sey) ve aşağıdaki kurallara göre gerekçeyi seçersin: {", ".join(f'"{g}"' for g in GEREKCELER)}. Karar mevcut duruma değil, önerilen şeye göre verilir. "Geçerli öneri" dışındaki her gerekçe "{ONERI_DEGIL}" demektir.
+- METİN adımında karar bellidir. Ekibin değerlendirmeleri gibi sade ve kısa, iki cümlelik bir değerlendirme yazarsın. "{ONERI}" ise önce önerinin sağlayabileceği faydayı, sonra ilerlemesi için gereken en fazla 2-3 şeyi yaz. "{ONERI_DEGIL}" ise nedenini ve öneriye dönüşmesi için ne gerektiğini ya da konuyu hangi birimin ele alması gerektiğini yaz. Önerinin kendi içeriğinden (makine, malzeme, süreç adı) somut olarak bahset. "Ayrıca" ile üçüncü bir cümle ekleme; "Öneri niteliğindedir" gibi genel bir girişle başlama.
+
+Cevabı yalnızca istenen JSON biçiminde ver.
 
 KURALLAR
 
@@ -54,41 +65,36 @@ def sistem_mesaji(kurallar: str) -> str:
     return _SISTEM + kurallar.strip()
 
 
-def kullanici_mesaji(
-    yeni: Oneri,
-    karar_ornekleri: list[Ornek],
-    tarz_ornekleri: list[Ornek],
-    sabit_onay: str | None = None,
-) -> str:
+def karar_mesaji(yeni: Oneri, ornekler: list[Ornek]) -> str:
+    return _mesaj(
+        yeni,
+        ornekler,
+        'KARAR adımı: bu öneri için önerilen şeyi ve gerekçeni JSON olarak ver: {"onerilen_sey": "...", "gerekce": "..."}',
+    )
+
+
+def metin_mesaji(yeni: Oneri, ornekler: list[Ornek], onay: str) -> str:
+    return _mesaj(
+        yeni,
+        ornekler,
+        f'METİN adımı: bu önerinin kararı "{onay}" olarak belirlendi. Bu karara uyan gerekçeyi seç ve '
+        'değerlendirme metnini JSON olarak ver: {"gerekce": "...", "degerlendirme": "..."}',
+    )
+
+
+def _mesaj(yeni: Oneri, ornekler: list[Ornek], istek: str) -> str:
     """Örnekler en benzerden başlayarak verilmeli; en benzer olan yeni önerinin hemen üstüne gelir."""
-    parcalar = ["BENZER GEÇMİŞ ÖNERİLER VE EKİBİN KARARLARI", ""]
-    parcalar += _ornek_bloklari(karar_ornekleri)
-    parcalar += ["YAZIM ÖRNEKLERİ (değerlendirme metnini bu tarzda yaz)", ""]
-    parcalar += _ornek_bloklari(tarz_ornekleri)
-    parcalar += [
-        "YENİ ÖNERİ",
-        _oneri_blogu(yeni),
-        "",
-    ]
-    if sabit_onay:
-        parcalar.append(
-            f'Ekibin benzer önerilerdeki kararlarına göre bu önerinin kararı "{sabit_onay}" olarak '
-            "belirlendi. Bu karara uyan gerekçeyi seç ve metni buna göre yaz."
-        )
-    parcalar.append("Bu öneri için gerekçeni ve değerlendirme metnini JSON olarak ver.")
-    return "\n".join(parcalar)
-
-
-def _ornek_bloklari(ornekler: list[Ornek]) -> list[str]:
-    satirlar = []
+    parcalar = ["EKİBİN BENZER ÖNERİLERDEKİ KARARLARI VE DEĞERLENDİRMELERİ", ""]
     # Küçük modeller en son okuduklarına daha çok ağırlık verir; en benzer örnek en sona.
     for ornek in reversed(ornekler):
-        satirlar += [_oneri_blogu(ornek.oneri), f"Karar: {ornek.oneri.onay_durumu}"]
-        # Eski kalıp metinler gösterilmez; model onları kopyalıyor.
-        if ornek.ozgun:
-            satirlar.append(f"Değerlendirme: {ornek.oneri.degerlendirme}")
-        satirlar.append("")
-    return satirlar
+        parcalar += [
+            _oneri_blogu(ornek.oneri),
+            f"Karar: {ornek.oneri.onay_durumu}",
+            f"Değerlendirme: {ornek.oneri.degerlendirme}",
+            "",
+        ]
+    parcalar += ["YENİ ÖNERİ", _oneri_blogu(yeni), "", istek]
+    return "\n".join(parcalar)
 
 
 def _oneri_blogu(oneri: Oneri) -> str:
