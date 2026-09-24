@@ -43,6 +43,61 @@ def metin_semasi(onay: str) -> dict:
     }
 
 
+# KARAR adımında model bu gerekçeleri, önerilen şey mevcut yöntemi iyileştirse bile sık
+# seçiyor. Bu gerekçeler seçilince, örnek ve kural göstermeden tek bir soru sorulur;
+# cevap "Hayır" ise karar "Öneri"ye çevrilir.
+KONTROL_SORULARI = {
+    "Rutin iş": (
+        "Önerilen şey yalnızca bozulan, aşınan, kirlenen ya da eksilen bir şeyi eski hâline "
+        "getirmekten mi ibaret (tamir, temizlik, aynısıyla yenileme, periyodik kontrol veya "
+        "kalibrasyon, zaten var olan bir kurala uyulması)? Mevcut yöntemi, parametreyi, "
+        "malzemeyi, ekipmanı ya da tasarımı değiştirerek daha iyi hâle getiriyor ya da yeni bir "
+        "şey yapıyorsa cevap Hayır'dır."
+    ),
+    "Politika/sosyal hak talebi": (
+        "Önerinin asıl faydası çalışanların kişisel yararına olan bir hak, imkân, ikram ya da "
+        "hediye mi (ödül, prim, izin, yemek, içecek, servis, sosyal etkinlik, kişisel eşya)? "
+        "Asıl faydası işe, sürece, maliyete, çevreye, kaliteye ya da güvenliğe ise cevap Hayır'dır."
+    ),
+}
+
+# Önerilen durum bundan kısaysa (boş, "-" gibi) kontrol yapılmaz: yazılı bir çözüm yokken
+# karar "Öneri"ye çevrilmez.
+KONTROL_EN_KISA_ONERILEN = 10
+
+
+def kontrol_semasi() -> dict:
+    """Kontrol sorusu. Model önce kısa gerekçesini yazar, sonra Evet/Hayır der."""
+    return {
+        "type": "object",
+        "properties": {
+            "aciklama": {"type": "string"},
+            "cevap": {"type": "string", "enum": ["Evet", "Hayır"]},
+        },
+        "required": ["aciklama", "cevap"],
+    }
+
+
+KONTROL_SISTEMI = (
+    "Sen bir fabrikanın öneri sistemi ekibine yardım eden bir asistansın. Bir çalışan önerisi "
+    "hakkındaki soruyu yalnızca önerilen duruma bakarak cevapla. Önce tek cümleyle açıkla, "
+    'sonra "Evet" ya da "Hayır" de. Cevabı yalnızca istenen JSON biçiminde ver.'
+)
+
+
+def kontrol_mesaji(yeni: Oneri, gerekce: str) -> str:
+    return "\n".join(
+        (
+            "ÖNERİ",
+            _oneri_blogu(yeni),
+            "",
+            f"SORU: {KONTROL_SORULARI[gerekce]}",
+            "",
+            'Cevabı JSON olarak ver: {"aciklama": "...", "cevap": "Evet" ya da "Hayır"}',
+        )
+    )
+
+
 _SISTEM = f"""Sen bir fabrikanın öneri sistemi ekibine yardım eden bir asistansın. Çalışanların gönderdiği iyileştirme önerileri için taslak değerlendirme yazarsın; son kararı ekip verir.
 
 Ekip gibi bak: önce önerinin sağlayabileceği faydayı ve amacını gör, sonra kararını ver. Öneri sahibini eleştiren ya da eksik arayan bir dil kullanma. Ekibin benzer önerilerde yazdığı değerlendirmeler sana nasıl düşündüklerini gösterir; onlara göre davran.

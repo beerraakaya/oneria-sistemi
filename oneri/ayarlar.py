@@ -28,6 +28,10 @@ class Ayarlar:
     # dakikalarca aynı şeyi yazabiliyor; normal bir cevap 300 tokeni geçmiyor.
     en_fazla_token: int = 800
 
+    # Model "Rutin iş" ya da "Politika/sosyal hak talebi" seçince kısa bir kontrol sorusuyla
+    # doğrulanır; doğrulanmazsa karar "Öneri" olur. false yapılırsa kontrol atlanır.
+    red_kontrolu: bool = True
+
     # Modele gösterilen, ekibin kendi yazdığı en benzer değerlendirme sayısı.
     ornek_sayisi: int = 8
     # 'kor-test --yontem komsu' için oylamaya katılan benzer öneri sayısı (tek sayı olmalı).

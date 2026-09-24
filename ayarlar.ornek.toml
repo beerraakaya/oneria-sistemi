@@ -20,6 +20,7 @@ gomme_modeli = 'bge-m3'
 # sicaklik = 0.0
 # tohum = 42
 # en_fazla_token = 800
+# red_kontrolu = true
 # ornek_sayisi = 8
 # komsu_sayisi = 7
 # karma_esigi = 5

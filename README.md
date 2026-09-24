@@ -59,8 +59,9 @@ Ekran kartı olmayan bir bilgisayarda her öneri birkaç dakika sürebilir. Test
 2. Kararı ve değerlendirmesi olan öneriler **kurumsal hafızayı** oluşturur. "deneme" gibi 40 karakterden kısa değerlendirmeler test kaydı sayılıp dışarıda bırakılır.
 3. Hafızadaki metinler ikiye ayrılır: ilk cümlesi en az 3 kayıtta aynen geçenler **eski kalıp** metinlerdir, diğerleri **yeni tarzdır**.
 4. Yeni bir öneri geldiğinde `bge-m3` ile anlamca en benzer eski öneriler bulunur. Modele yalnızca **ekibin kendi yazdığı** (yeni tarz) en benzer 8 değerlendirme, kararıyla birlikte gösterilir; böylece model ekibin benzer önerilerde neye bakıp ne dediğini görür.
-5. Değerlendirme iki adımda yapılır:
+5. Değerlendirme adım adım yapılır:
    - **Karar:** model önerilen şeyi özetler ve `kurallar.md`'deki gerekçelerden birini seçer ("Geçerli öneri" ya da bir ret gerekçesi).
+   - **Kontrol:** model "Rutin iş" ya da "Politika/sosyal hak talebi" seçtiyse, örnek göstermeden tek bir soru sorulur ("Bozulanı eski hâline mi getiriyor?", "Asıl faydası çalışanın kişisel yararına mı?"). Cevap "Hayır" ise karar "Öneri" olur. Model bu iki gerekçeyi, mevcut yöntemi iyileştiren önerilerde de yanlışlıkla seçiyordu. `ayarlar.toml` içinde `red_kontrolu = false` yazılarak kapatılabilir.
    - **Metin:** karar belliyken, ekip gibi önce faydayı görüp iki cümlelik değerlendirmeyi yazar.
 6. Durum karara göre yazılır: "Öneri" için "Devam Ediyor", "Öneri Değil" için "Red Edildi". Tamamlandı ve Uygulanamaz'ı ekip sonradan girer.
 

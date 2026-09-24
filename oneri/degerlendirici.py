@@ -10,8 +10,13 @@ from .excel import BASLANGIC_DURUMU, ONERI, ONERI_DEGIL, Oneri
 from .hafiza import Hafiza
 from .istem import (
     GEREKCELER,
-    karar_mesaji,
+    KONTROL_EN_KISA_ONERILEN,
+    KONTROL_SISTEMI,
+    KONTROL_SORULARI,
     karar_semasi,
+    kontrol_mesaji,
+    kontrol_semasi,
+    karar_mesaji,
     metin_mesaji,
     metin_semasi,
     sistem_mesaji,
@@ -49,6 +54,7 @@ class Degerlendirici:
         )
 
         onerilen_sey = ""
+        kontrol_notu = ""
         onay = sabit_onay
         if onay is None:
             karar = self._sor(
@@ -60,6 +66,20 @@ class Degerlendirici:
             )
             onay = GEREKCELER[karar["gerekce"]]
             onerilen_sey = karar["onerilen_sey"]
+            if self._kontrol_edilmeli(oneri, karar["gerekce"]):
+                kontrol = self._sor(
+                    [
+                        {"role": "system", "content": KONTROL_SISTEMI},
+                        {"role": "user", "content": kontrol_mesaji(oneri, karar["gerekce"])},
+                    ],
+                    kontrol_semasi(),
+                )
+                if kontrol["cevap"] == "Hayır":
+                    onay = ONERI
+                    kontrol_notu = (
+                        f' (kontrol: "{karar["gerekce"]}" doğrulanmadı, karar Öneri yapıldı: '
+                        f'{kontrol["aciklama"]})'
+                    )
 
         mesajlar = [
             {"role": "system", "content": self._sistem},
@@ -82,11 +102,18 @@ class Degerlendirici:
                     f"Model uygunsuz ifade kullanmayı sürdürdü: {', '.join(uygunsuz)}"
                 )
             celiski = karar_celiskileri(onay, cevap["degerlendirme"])
-        gerekce = cevap["gerekce"]
+        gerekce = cevap["gerekce"] + kontrol_notu
         if celiski:
             # Taslak atılmaz, ekip kontrolünde dikkat çeksin diye işaretlenir.
             gerekce += f" (uyarı: metin kararla çelişebilir: {', '.join(celiski)})"
         return Taslak(onay, BASLANGIC_DURUMU[onay], cevap["degerlendirme"], gerekce, onerilen_sey)
+
+    def _kontrol_edilmeli(self, oneri: Oneri, gerekce: str) -> bool:
+        return (
+            self._ayarlar.red_kontrolu
+            and gerekce in KONTROL_SORULARI
+            and len(oneri.onerilen_durum.strip()) >= KONTROL_EN_KISA_ONERILEN
+        )
 
     def _sor(self, mesajlar: list[dict], sema: dict) -> dict:
         try:
@@ -109,10 +136,13 @@ class Degerlendirici:
             },
         )
         alanlar = {ad: str(cevap.get(ad) or "").strip() for ad in sema["properties"]}
-        # "onerilen_sey" yalnızca raporda gösterilen bir tanı bilgisi; boş olabilir.
-        if alanlar["gerekce"] not in sema["properties"]["gerekce"]["enum"] or alanlar.get(
-            "degerlendirme"
-        ) == "":
+        # "onerilen_sey" ve "aciklama" yalnızca raporda gösterilen tanı bilgisi; boş olabilir.
+        gecersiz = any(
+            alanlar[ad] not in ozellik["enum"]
+            for ad, ozellik in sema["properties"].items()
+            if "enum" in ozellik
+        )
+        if gecersiz or alanlar.get("degerlendirme") == "":
             raise GecersizCevap(f"Modelin cevabı beklenen biçimde değil: {cevap}")
         return alanlar
 
