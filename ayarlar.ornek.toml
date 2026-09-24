@@ -1,0 +1,28 @@
+# Bu dosyayı "ayarlar.toml" adıyla kopyalayıp kendi bilgisayarınıza göre düzenleyin.
+# ayarlar.toml git'e gönderilmez. Yazmadığınız ayarlar varsayılan değerleriyle kalır.
+#
+# Windows yollarını tek tırnakla yazın: 'C:\Users\ad\Desktop\oneri.xlsx'
+
+# Öneri Excel'inin bilgisayarınızdaki kopyası
+excel_yolu = 'veri/oneri.xlsx'
+
+# Ollama'da yüklü modeller ("ollama list" ile görebilirsiniz)
+dil_modeli = 'qwen2.5'
+gomme_modeli = 'bge-m3'
+
+# Diğer ayarlar ve varsayılanları:
+# sayfa_adi = 'Genel Tablo'
+# fabrika = 'Denizli'
+# kurallar_yolu = 'kurallar.md'
+# veri_klasoru = 'veri'
+# ollama_adresi = 'http://localhost:11434'
+# baglam_uzunlugu = 12288
+# sicaklik = 0.0
+# tohum = 42
+# en_fazla_token = 800
+# karar_ornegi_sayisi = 6
+# tarz_ornegi_sayisi = 4
+# komsu_sayisi = 7
+# karma_esigi = 5
+# en_kisa_degerlendirme = 40
+# kalip_tekrar_esigi = 3
