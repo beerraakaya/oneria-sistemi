@@ -139,3 +139,57 @@ def test_kor_test_karma_yontemi(ayar_dosyasi, ayarlar, sahte_ollama):
     rapor = next(ayarlar.veri_klasoru.glob("kor_test_karma_*.xlsx"))
     ozet = {s[0]: s[1] for s in openpyxl.load_workbook(rapor)["Özet"].iter_rows(values_only=True)}
     assert ozet["Karar yöntemi"].startswith("karma:")
+
+
+def test_calistir_bekleyen_satiri_doldurur_ve_rapor_gosterir(ayar_dosyasi, ayarlar, capsys):
+    assert main(["--ayarlar", str(ayar_dosyasi), "calistir"]) == 0
+    cikti = capsys.readouterr().out
+    assert "1 öneri doldurulacak." in cikti
+    assert "Yazılan: 1, atlanan: 0, üretilemeyen: 0" in cikti
+    sayfa = openpyxl.load_workbook(ayarlar.excel_yolu)["Genel Tablo"]
+    assert (sayfa["L9"].value, sayfa["M9"].value) == ("Öneri", "Devam Ediyor")
+
+    assert main(["--ayarlar", str(ayar_dosyasi), "rapor"]) == 0
+    cikti = capsys.readouterr().out
+    assert "Toplam   yazılan    1 | kontrol bekleyen   1" in cikti
+
+
+def test_calistir_deneme_excele_yazmaz(ayar_dosyasi, ayarlar, capsys):
+    assert main(["--ayarlar", str(ayar_dosyasi), "calistir", "--deneme"]) == 0
+    assert "Deneme: Excel'e ve kayda hiçbir şey yazılmadı." in capsys.readouterr().out
+    assert openpyxl.load_workbook(ayarlar.excel_yolu)["Genel Tablo"]["L9"].value is None
+
+
+def test_rapor_taslak_yokken(ayar_dosyasi, capsys):
+    assert main(["--ayarlar", str(ayar_dosyasi), "rapor"]) == 0
+    assert "Henüz yapay zekânın yazdığı taslak yok." in capsys.readouterr().out
+
+
+def test_kor_test_yapay_zekanin_kendi_taslaklarini_test_etmez(ayar_dosyasi, ayarlar, sahte_ollama, capsys):
+    from datetime import datetime
+
+    from oneri.excel import onerileri_oku
+    from oneri.taslaklar import ONAYLANDI, TaslakDeposu
+    from oneri.degerlendirici import Taslak
+
+    # Satır 6'yı yapay zekâ yazmış ve 7 gün sonunda onaylanmış gibi kaydet.
+    satir6 = next(o for o in onerileri_oku(ayarlar.excel_yolu, "Genel Tablo") if o.satir == 6)
+    depo = TaslakDeposu(ayarlar.taslak_yolu)
+    depo.kaydet(satir6, Taslak("Öneri", "Devam Ediyor", satir6.degerlendirme), datetime(2026, 7, 24))
+    depo.sonuclandir(satir6.anahtar, ONAYLANDI, datetime(2026, 7, 31), satir6)
+    depo.kapat()
+
+    assert main(["--ayarlar", str(ayar_dosyasi), "kor-test"]) == 0
+    assert "1 öneri değerlendirilecek." in capsys.readouterr().out
+
+
+def test_sharepoint_ayari_eksikse_anlasilir_hata(tmp_path, ayarlar, capsys, monkeypatch):
+    monkeypatch.delenv("ONERI_GRAPH_SIRRI", raising=False)
+    yol = tmp_path / "sp.toml"
+    yol.write_text(
+        "sharepoint_dosya_adresi = 'https://sirket.sharepoint.com/sites/A/Shared Documents/o.xlsx'\n"
+        f"graph_kiraci = 'k'\nveri_klasoru = '{ayarlar.veri_klasoru}'\n",
+        encoding="utf-8",
+    )
+    assert main(["--ayarlar", str(yol), "calistir"]) == 1
+    assert "SharePoint için eksik ayar: graph_uygulama, ONERI_GRAPH_SIRRI" in capsys.readouterr().err

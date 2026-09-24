@@ -10,6 +10,15 @@ excel_yolu = 'veri/oneri.xlsx'
 dil_modeli = 'qwen2.5'
 gomme_modeli = 'bge-m3'
 
+# --- Canlı kullanım (SharePoint) ---
+# Excel'in SharePoint adresi: dosyayı SharePoint'te bulun, "..." > "Ayrıntılar" >
+# "Yol" yanındaki kopyala düğmesiyle alın. Boş bırakılırsa excel_yolu'ndaki dosyaya yazılır.
+# sharepoint_dosya_adresi = 'https://sirket.sharepoint.com/sites/SiteAdi/Shared Documents/Klasor/Oneri.xlsx'
+# IT'nin verdiği bilgiler:
+# graph_kiraci = '00000000-0000-0000-0000-000000000000'
+# graph_uygulama = '00000000-0000-0000-0000-000000000000'
+# Gizli anahtar buraya değil, ONERI_GRAPH_SIRRI ortam değişkenine yazılmalı (README'ye bakın).
+
 # Diğer ayarlar ve varsayılanları:
 # sayfa_adi = 'Genel Tablo'
 # fabrika = 'Denizli'
@@ -26,3 +35,6 @@ gomme_modeli = 'bge-m3'
 # karma_esigi = 5
 # en_kisa_degerlendirme = 40
 # kalip_tekrar_esigi = 3
+# onay_gun_sayisi = 7
+# en_fazla_oneri = 20
+# taslak_rengi = '#FFF2CC'

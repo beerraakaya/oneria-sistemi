@@ -43,9 +43,31 @@ class Ayarlar:
     # İlk cümlesi bu kadar kayıtta aynen geçen metin eski kalıp metin sayılır.
     kalip_tekrar_esigi: int = 3
 
+    # --- Canlı kullanım ---
+    # SharePoint'teki öneri Excel'inin adresi. Boşsa excel_yolu'ndaki dosya kullanılır
+    # (denemek için: bilgisayardaki bir kopyaya yazar).
+    sharepoint_dosya_adresi: str = ""
+    # IT'nin Microsoft Entra'da (Azure AD) açtığı uygulamanın bilgileri.
+    graph_kiraci: str = ""  # Directory (tenant) ID
+    graph_uygulama: str = ""  # Application (client) ID
+    # Uygulamanın gizli anahtarı. Dosyaya yazmak yerine ONERI_GRAPH_SIRRI ortam
+    # değişkeninde tutulması önerilir.
+    graph_sirri: str = ""
+    # Yapay zekânın yazdığı ve bu kadar gün değiştirilmeyen taslak onaylanmış sayılır.
+    onay_gun_sayisi: int = 7
+    # Bir çalışmada en fazla bu kadar öneri doldurulur; kalanlar sonraki çalışmaya kalır.
+    en_fazla_oneri: int = 20
+    # Kontrol bekleyen taslak hücrelerinin dolgu rengi; ekip onaylayınca ya da
+    # düzeltince renk kaldırılır. Boş bırakılırsa hücreler boyanmaz.
+    taslak_rengi: str = "#FFF2CC"
+
     @property
     def hafiza_yolu(self) -> Path:
         return self.veri_klasoru / "hafiza.db"
+
+    @property
+    def taslak_yolu(self) -> Path:
+        return self.veri_klasoru / "taslaklar.db"
 
 
 def ayarlari_yukle(yol: Path) -> Ayarlar:

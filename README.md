@@ -4,9 +4,10 @@
 
 Yapay zekâ modeli (Ollama ile Qwen) şirket bilgisayarında çalışır; öneri metinleri hiçbir dış yapay zekâ servisine gönderilmez.
 
-## Şu anki aşama: kör test
+## Aşamalar
 
-Asistan henüz Excel'e yazmıyor. Önce ne kadar isabetli olduğunu ölçüyoruz: ekibin yeni tarzda değerlendirdiği öneriler, cevapları gizlenerek yapay zekâya yeniden değerlendirtilir ve iki cevap bir Excel raporunda yan yana konur.
+1. **Kör test (tamamlandı):** ekibin değerlendirdiği öneriler, cevapları gizlenerek yapay zekâya yeniden değerlendirildi. Son testte ekiple aynı karar oranı %74 (hedef %70).
+2. **Canlı kullanım:** program tek bir şirket bilgisayarında çalışır, SharePoint'teki Excel'de bekleyen Denizli önerilerini doldurur. Ekip Excel'i her zamanki gibi açıp taslakları kontrol eder. Aşağıdaki "Canlı kullanım" bölümüne bakın.
 
 ## Kurulum (Windows)
 
@@ -33,6 +34,9 @@ python -m oneri kontrol              # Excel, kurallar ve modeller hazır mı?
 python -m oneri kor-test --adet 3    # önce en yeni 3 öneriyle hızlı deneme
 python -m oneri kor-test             # yeni tarzdaki tüm önerilerle kör test
 python -m oneri degerlendir 567      # tek bir satır için taslak; Excel'e yazmaz
+python -m oneri calistir --deneme    # canlı kullanım: yazılacakları göster, yazma
+python -m oneri calistir             # canlı kullanım: bekleyen önerileri Excel'e yaz
+python -m oneri rapor                # taslakların onaylanma oranı
 ```
 
 Kör testte kararın nasıl verileceği `--yontem` ile seçilir:
@@ -67,17 +71,117 @@ Ekran kartı olmayan bir bilgisayarda her öneri birkaç dakika sürebilir. Test
 
 `kurallar.md` yapay zekâya verilen talimattır; ekip olarak gözden geçirip düzenleyebilirsiniz.
 
+## Canlı kullanım
+
+### Program ne yapar?
+
+`python -m oneri calistir` her çalıştığında:
+
+1. SharePoint'teki Excel'in güncel hâlini indirir.
+2. **Önceki taslaklara bakar:**
+   - Ekip Değerlendirme'yi ya da Onay Durumu'nu değiştirdiyse taslak **düzeltildi** sayılır. Ekibin yazdığı metin bundan sonra yapay zekâya örnek olur.
+   - 7 gün boyunca değiştirilmediyse **onaylandı** sayılır.
+   - Durum'un sonradan Tamamlandı ya da Uygulanamaz yapılması düzeltme sayılmaz; bu, sürecin ilerlemesidir.
+   - Her iki durumda da hücrelerin sarı rengi kaldırılır.
+3. **Değerlendirme, Onay Durumu ve Durum hücrelerinin üçü de boş olan Denizli satırlarını doldurur.** Yazdığı hücreleri açık sarıya boyar; ekip sarı hücrelerin henüz kontrol edilmemiş yapay zekâ taslakları olduğunu anlar.
+
+Güvenlik kuralları:
+
+- Yalnızca bu üç hücreye yazar. Satır eklemez, silmez, sıralamaz; Tuzla satırlarına ve dolu hücrelere dokunmaz.
+- Yazmadan hemen önce satırı yeniden okur. Öneri değişmişse ya da o arada biri bir şey yazmışsa o satırı atlar.
+- Ekibin henüz kontrol etmediği taslakları yapay zekâya örnek göstermez; yapay zekâ kendi yazdıklarından değil, ekibin yazdıklarından ve onayladıklarından öğrenir.
+- Bilgisayar kapalıyken gelen öneriler kaybolmaz. Öneriler Excel'e Jotform üzerinden gelmeye devam eder; program açıldığında boş olan bütün satırları doldurur.
+- Bir çalışmada en fazla 20 öneri doldurur (`en_fazla_oneri`); kalanlar bir sonraki çalışmaya kalır.
+
+### 1. IT'nin yapması gerekenler
+
+Programın SharePoint'e yazabilmesi için Microsoft Entra ID'de (Azure AD) bir uygulama kaydı gerekir:
+
+1. **App registration** oluşturulur (örn. "Öneri Asistanı").
+2. Microsoft Graph için **application permission** verilir ve **admin consent** yapılır:
+   - Önerilen: `Sites.Selected`, ardından yalnızca öneri Excel'inin bulunduğu site için **write** izni verilir.
+   - Alternatif: `Files.ReadWrite.All` (daha geniş yetkidir).
+3. Bir **client secret** oluşturulur.
+
+IT'den şu üç bilgi alınır: **Directory (tenant) ID**, **Application (client) ID** ve **client secret**.
+
+### 2. Programın kurulacağı bilgisayarda ayarlar
+
+`ayarlar.toml` dosyasına şunları yazın:
+
+```toml
+dil_modeli = 'qwen2.5:14b'
+sharepoint_dosya_adresi = 'https://sirket.sharepoint.com/sites/SiteAdi/Shared Documents/Klasor/Oneri.xlsx'
+graph_kiraci = '00000000-0000-0000-0000-000000000000'
+graph_uygulama = '00000000-0000-0000-0000-000000000000'
+```
+
+`graph_kiraci` yerine IT'nin verdiği tenant ID'yi, `graph_uygulama` yerine client ID'yi yazın.
+
+**Dosya adresini almak için:** SharePoint'te Excel dosyasının yanındaki "..." menüsünden **Ayrıntılar**'ı açın, **Yol** satırındaki kopyala düğmesine basın. "Bağlantıyı kopyala" ile alınan paylaşım bağlantısı da çalışır; ancak IT `Sites.Selected` izni verdiyse Yol kullanılmalıdır.
+
+**Gizli anahtar (client secret) dosyaya yazılmaz.** Komut satırında bir kez şunu çalıştırın, sonra komut satırını kapatıp yeniden açın:
+
+```
+setx ONERI_GRAPH_SIRRI "IT'nin verdiği client secret"
+```
+
+Kontrol edin:
+
+```
+python -m oneri kontrol
+```
+
+"SharePoint: bağlandı" ve "Her şey hazır." görünmelidir.
+
+### 3. Önce deneyin
+
+```
+python -m oneri calistir --deneme
+```
+
+Bu komut Excel'e **hiçbir şey yazmaz**; hangi satıra ne yazılacağını ekranda gösterir. Sonuçlar uygunsa gerçek çalıştırma:
+
+```
+python -m oneri calistir
+```
+
+İsterseniz SharePoint'e geçmeden önce bilgisayardaki bir kopyada da deneyebilirsiniz. `sharepoint_dosya_adresi` boş bırakılırsa program `excel_yolu`'ndaki dosyaya yazar. Bu dosya bir **kopya** olmalı ve Excel'de açık olmamalıdır.
+
+### 4. Otomatik çalıştırma (Görev Zamanlayıcı)
+
+Program `calistir.bat` ile çalışır ve çıktılarını `veri\gunluk.log` dosyasına yazar. Bilgisayarın sürekli açık kalması gerekmez; mesai saatinde açık olması yeterlidir.
+
+**Mesai boyunca her 30 dakikada bir** (proje klasörünün yolunu kendi bilgisayarınıza göre değiştirin):
+
+```
+schtasks /Create /TN "Oneri Asistani" /TR "\"C:\oneri-sistemi\calistir.bat\"" /SC DAILY /ST 08:00 /RI 30 /DU 10:00 /F
+```
+
+**Bilgisayar açılınca bir kez:** `Win + R` > `shell:startup` yazın. Açılan klasöre `calistir.bat` dosyasının kısayolunu koyun.
+
+Notlar:
+
+- Önceki çalışma bitmeden yenisi başlarsa yenisi kendiliğinden atlanır.
+- Ollama henüz açılmadıysa o çalışma hata verir; bir sonraki çalışma işi yapar.
+- Görevi "Görev Zamanlayıcı" uygulamasından görebilir, durdurabilir ya da silebilirsiniz.
+
+### Ölçüm
+
+```
+python -m oneri rapor
+```
+
+Bu komut her ay için şunları gösterir: kaç taslak yazıldı, kaçı değiştirilmeden onaylandı, kaçı düzeltildi (kaçında kararın kendisi değişti) ve **onay oranı**. Projenin başarısı bu oranla izlenir.
+
+Yapay zekânın yazdığı taslakların kaydı ve gerekçeleri `veri\taslaklar.db` dosyasındadır; bu dosya silinmemelidir.
+
 ## Veri güvenliği
 
-- Excel dosyaları, `veri` klasörü (hafıza ve raporlar) ve `ayarlar.toml` git'e gönderilmez.
+- Excel dosyaları, `veri` klasörü (hafıza, taslak kaydı, SharePoint kopyası, günlük ve raporlar) ve `ayarlar.toml` git'e gönderilmez.
+- Gizli anahtar dosyada değil, `ONERI_GRAPH_SIRRI` ortam değişkeninde tutulur.
 - Testler gerçek veri değil, uydurma örnekler kullanır.
-- Yapay zekâya yalnızca öneri bilgileri (konu, bölüm, mevcut durum, önerilen durum) gider.
-
-## Yol haritası
-
-1. **Kör test** (şimdi): isabeti ölç, kuralları ve ayarları iyileştir.
-2. **Canlı kullanım:** SharePoint'teki Excel'i okuyup yalnızca ilgili üç hücreye yazmak (IT izni gerekir), yapay zekânın yazdıklarını kaydetmek ve **7 gün kuralı**: 7 gün içinde değiştirilmeyen taslak onaylanmış sayılır, değiştirilen taslakta ekibin yazdığı örnek alınır.
-3. **Ölçüm:** taslakların yüzde kaçının değiştirilmeden onaylandığını raporlamak.
+- Yapay zekâya yalnızca öneri bilgileri (konu, bölüm, mevcut durum, önerilen durum) gider. Kişi adları okunmaz. Yapay zekâ bilgisayarın kendisinde çalışır; öneriler dış bir yapay zekâ servisine gönderilmez.
 
 ## Geliştirme
 

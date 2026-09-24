@@ -2,20 +2,27 @@
 
 import argparse
 import sys
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
 from .ayarlar import Ayarlar, ayarlari_yukle
+from .canli import CalismaSuruyor, calistir, tek_calisma
 from .degerlendirici import KarmaDegerlendirici, KomsuDegerlendirici
 from .excel import ExcelHatasi
 from .hafiza import ornek_alinabilir_mi, ozgun_satirlar
+from .kaynak import GraphHatasi
 from .kor_test import kor_test_calistir, ozetle, rapor_yaz
 from .ollama import Ollama, OllamaHatasi, model_yuklu_mu
-from .uygulama import asistani_kur, fabrika_onerileri
+from .taslaklar import DUZELTILDI, ONAYLANDI, SILINDI, TaslakDeposu
+from .uygulama import asistani_kur, fabrika_onerileri, kaynagi_hazirla
 
 
 def kontrol(ayarlar: Ayarlar, _args) -> int:
     """Excel'i, kurallar dosyasını ve Ollama modellerini kontrol eder."""
+    kaynak, ayarlar = kaynagi_hazirla(ayarlar)
+    if ayarlar.sharepoint_dosya_adresi:
+        print(f"SharePoint: bağlandı, dosya indirildi ({kaynak.ad})")
     print(f"Excel: {ayarlar.excel_yolu} ({ayarlar.sayfa_adi} sayfası)")
     oneriler = fabrika_onerileri(ayarlar)
     ornekler = [o for o in oneriler if ornek_alinabilir_mi(o, ayarlar.en_kisa_degerlendirme)]
@@ -53,10 +60,18 @@ def kontrol(ayarlar: Ayarlar, _args) -> int:
 
 def kor_test(ayarlar: Ayarlar, args) -> int:
     """Yeni tarzda değerlendirilmiş önerileri cevapları gizleyerek yeniden değerlendirir."""
+    _, ayarlar = kaynagi_hazirla(ayarlar)
     print("Hafıza hazırlanıyor (ilk çalıştırmada birkaç dakika sürebilir)...")
-    asistan = asistani_kur(ayarlar, Ollama(ayarlar.ollama_adresi))
+    oneriler = fabrika_onerileri(ayarlar)
+    # Yapay zekânın yazıp ekibin düzeltmediği taslaklar test edilmez (kendi cevabını bulurdu);
+    # henüz kontrol edilmemiş olanlar örnek de alınmaz.
+    kendi, kontrolsuz = _yapay_zeka_satirlari(ayarlar, oneriler)
+    asistan = asistani_kur(ayarlar, Ollama(ayarlar.ollama_adresi), oneriler, kontrolsuz)
     try:
-        test = sorted((o.oneri for o in asistan.hafiza.ornekler if o.ozgun), key=lambda o: o.satir)
+        test = sorted(
+            (o.oneri for o in asistan.hafiza.ornekler if o.ozgun and o.oneri.satir not in kendi),
+            key=lambda o: o.satir,
+        )
         if args.adet:
             test = test[-args.adet :]
         if args.yontem == "komsu":
@@ -90,7 +105,10 @@ def kor_test(ayarlar: Ayarlar, args) -> int:
 
 def degerlendir(ayarlar: Ayarlar, args) -> int:
     """Tek bir satır için taslak üretir ve ekrana yazar; Excel'e dokunmaz."""
-    asistan = asistani_kur(ayarlar, Ollama(ayarlar.ollama_adresi))
+    _, ayarlar = kaynagi_hazirla(ayarlar)
+    oneriler = fabrika_onerileri(ayarlar)
+    _, kontrolsuz = _yapay_zeka_satirlari(ayarlar, oneriler)
+    asistan = asistani_kur(ayarlar, Ollama(ayarlar.ollama_adresi), oneriler, kontrolsuz)
     try:
         oneri = next((o for o in asistan.oneriler if o.satir == args.satir), None)
         if oneri is None:
@@ -114,6 +132,90 @@ def degerlendir(ayarlar: Ayarlar, args) -> int:
     return 0
 
 
+def _yapay_zeka_satirlari(ayarlar: Ayarlar, oneriler) -> tuple[set[int], set[int]]:
+    """(ekibin düzeltmediği yapay zekâ taslakları, henüz kontrol edilmemiş taslaklar) satırları."""
+    if not ayarlar.taslak_yolu.exists():
+        return set(), set()
+    depo = TaslakDeposu(ayarlar.taslak_yolu)
+    try:
+        taslaklar = {t.anahtar: t for t in depo.hepsi()}
+    finally:
+        depo.kapat()
+    kendi, kontrolsuz = set(), set()
+    for oneri in oneriler:
+        taslak = taslaklar.get(oneri.anahtar)
+        if taslak and taslak.sonuc != DUZELTILDI:
+            kendi.add(oneri.satir)
+            if taslak.sonuc is None:
+                kontrolsuz.add(oneri.satir)
+    return kendi, kontrolsuz
+
+
+def calistir_komutu(ayarlar: Ayarlar, args) -> int:
+    """Bekleyen önerileri doldurur, önceki taslaklara 7 gün kuralını uygular."""
+    print(f"--- {datetime.now():%d.%m.%Y %H:%M} ---")
+    try:
+        with tek_calisma(ayarlar.veri_klasoru):
+            kaynak, ayarlar = kaynagi_hazirla(ayarlar)
+            depo = TaslakDeposu(ayarlar.taslak_yolu)
+            try:
+                ozet = calistir(
+                    ayarlar,
+                    kaynak,
+                    Ollama(ayarlar.ollama_adresi),
+                    depo,
+                    datetime.now(),
+                    deneme=args.deneme,
+                )
+            finally:
+                depo.kapat()
+    except CalismaSuruyor as hata:
+        print(f"{hata} Bu çalışma atlandı.")
+        return 0
+
+    if args.deneme:
+        print("\nDeneme: Excel'e ve kayda hiçbir şey yazılmadı.")
+    print(
+        f"\nYazılan: {ozet.yazilan}, atlanan: {ozet.atlanan}, üretilemeyen: {ozet.hatali}"
+        f" | onaylanan: {ozet.onaylanan}, düzeltilen: {ozet.duzeltilen}, silinen: {ozet.silinen}"
+    )
+    if ozet.kalan:
+        print(f"{ozet.kalan} öneri sonraki çalışmaya kaldı.")
+    return 1 if ozet.hatali else 0
+
+
+def rapor(ayarlar: Ayarlar, _args) -> int:
+    """Yapay zekâ taslaklarının ne kadarının değiştirilmeden onaylandığını gösterir."""
+    if not ayarlar.taslak_yolu.exists():
+        print("Henüz yapay zekânın yazdığı taslak yok.")
+        return 0
+    depo = TaslakDeposu(ayarlar.taslak_yolu)
+    try:
+        taslaklar = depo.hepsi()
+    finally:
+        depo.kapat()
+
+    def satir(baslik: str, grup: list) -> str:
+        sayi = Counter(t.sonuc for t in grup)
+        karar = sum(1 for t in grup if t.sonuc == DUZELTILDI and t.ekip_onay_durumu != t.onay_durumu)
+        biten = sayi[ONAYLANDI] + sayi[DUZELTILDI]
+        oran = f"%{100 * sayi[ONAYLANDI] / biten:.0f}" if biten else "-"
+        return (
+            f"{baslik:<8} yazılan {len(grup):>4} | kontrol bekleyen {sayi[None]:>3} | "
+            f"değiştirilmeden onaylanan {sayi[ONAYLANDI]:>3} | düzeltilen {sayi[DUZELTILDI]:>3}"
+            f" (kararı değişen {karar}) | silinen {sayi[SILINDI]:>2} | onay oranı {oran}"
+        )
+
+    print(f"Onay süresi: {ayarlar.onay_gun_sayisi} gün. Onay oranı = onaylanan / (onaylanan + düzeltilen)\n")
+    aylar: dict[str, list] = {}
+    for taslak in taslaklar:
+        aylar.setdefault(f"{taslak.yazilma:%Y-%m}", []).append(taslak)
+    for ay, grup in sorted(aylar.items()):
+        print(satir(ay, grup))
+    print(satir("Toplam", taslaklar))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ayristirici = argparse.ArgumentParser(
         prog="python -m oneri", description="Öneri sistemi yapay zekâ asistanı"
@@ -134,14 +236,27 @@ def main(argv: list[str] | None = None) -> int:
             " karma: benzer öneriler güçlü şekilde aynıysa onların kararı, değilse model"
         ),
     )
+    canli = komutlar.add_parser(
+        "calistir", help="bekleyen önerileri Excel'e yazar, önceki taslaklara 7 gün kuralını uygular"
+    )
+    canli.add_argument(
+        "--deneme", action="store_true", help="Excel'e yazmadan, yazılacakları ekranda göster"
+    )
+    komutlar.add_parser("rapor", help="taslakların ne kadarının değiştirilmeden onaylandığını gösterir")
     tek = komutlar.add_parser("degerlendir", help="tek bir Excel satırı için taslak üretir")
     tek.add_argument("satir", type=int, help="Excel'deki satır numarası")
     args = ayristirici.parse_args(argv)
 
-    calistir = {"kontrol": kontrol, "kor-test": kor_test, "degerlendir": degerlendir}[args.komut]
+    komut = {
+        "kontrol": kontrol,
+        "kor-test": kor_test,
+        "degerlendir": degerlendir,
+        "calistir": calistir_komutu,
+        "rapor": rapor,
+    }[args.komut]
     try:
-        return calistir(ayarlari_yukle(args.ayarlar), args)
-    except (ExcelHatasi, OllamaHatasi, OSError, ValueError) as hata:
+        return komut(ayarlari_yukle(args.ayarlar), args)
+    except (ExcelHatasi, OllamaHatasi, GraphHatasi, OSError, ValueError) as hata:
         print(f"HATA: {hata}", file=sys.stderr)
         return 1
 
