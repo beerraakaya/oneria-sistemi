@@ -1,6 +1,6 @@
 import pytest
 
-from oneri.degerlendirici import KarmaDegerlendirici, karar_celiskileri, uygunsuz_ifadeler
+from oneri.degerlendirici import KarmaDegerlendirici, karar_celiskileri, uygunsuz_ifadeler, yabanci_yazi
 from oneri.istem import GEREKCELER
 from oneri.ollama import GecersizCevap, Ollama
 from oneri.uygulama import asistani_kur
@@ -290,3 +290,29 @@ def test_red_kontrolu_ayarla_kapatilabilir(ayarlar, sahte_ollama):
         asistan.kapat()
     assert len(sahte_ollama.sohbetler()) == 2
     assert taslak.onay_durumu == "Öneri Değil"
+
+
+def test_yabanci_yazi_bulunur():
+    assert yabanci_yazi("Ziyaretçi接待时，请允许我 seti.") == ["接待时，请允许我"]
+    assert yabanci_yazi("Direnç 5 Ω, CO₂ azaltımı, FIREGUARD™ sistemi.") == []
+
+
+def test_cince_karisan_metin_bastan_istenir(asistan, sahte_ollama):
+    sahte_ollama.sohbet_cevabi = [
+        _karar("Geçerli öneri"),
+        _metin("Geçerli öneri", "Ziyaretçi接待时 seti."),
+        _metin("Geçerli öneri", "Ziyaretçi sürecini kolaylaştırabilir. Maliyet belirlenmelidir."),
+    ]
+    taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
+
+    _, ilk, ikinci = sahte_ollama.sohbetler()
+    # Bozuk cevap sohbete eklenmez; aynı istek daha yüksek sıcaklıkla tekrarlanır.
+    assert ikinci["messages"] == ilk["messages"]
+    assert ikinci["options"]["temperature"] == pytest.approx(0.3)
+    assert taslak.degerlendirme == "Ziyaretçi sürecini kolaylaştırabilir. Maliyet belirlenmelidir."
+
+
+def test_cince_surerse_taslak_reddedilir(asistan, sahte_ollama):
+    sahte_ollama.sohbet_cevabi = [_karar("Geçerli öneri"), _metin("Geçerli öneri", "Seti接待时.")]
+    with pytest.raises(GecersizCevap, match="Türkçe olmayan"):
+        asistan.degerlendirici.degerlendir(_oneri(asistan, 9))

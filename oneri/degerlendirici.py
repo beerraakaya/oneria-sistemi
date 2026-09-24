@@ -87,6 +87,10 @@ class Degerlendirici:
         ]
         sema = metin_semasi(onay)
         cevap = self._sor(mesajlar, sema)
+        if yabanci_yazi(cevap["degerlendirme"]):
+            # Qwen bazen metnin ortasında Çinceye geçiyor. Bozuk cevap sohbete eklenmeden,
+            # biraz rastgelelikle baştan istenir.
+            cevap = self._sor_bir_kez(mesajlar, sema, self._ayarlar.sicaklik + 0.3)
         uygunsuz = uygunsuz_ifadeler(cevap["degerlendirme"])
         celiski = karar_celiskileri(onay, cevap["degerlendirme"])
         if uygunsuz or celiski:
@@ -102,6 +106,9 @@ class Degerlendirici:
                     f"Model uygunsuz ifade kullanmayı sürdürdü: {', '.join(uygunsuz)}"
                 )
             celiski = karar_celiskileri(onay, cevap["degerlendirme"])
+        yabanci = yabanci_yazi(cevap["degerlendirme"])
+        if yabanci:
+            raise GecersizCevap(f"Model Türkçe olmayan metin yazdı: {' '.join(yabanci)[:80]}")
         gerekce = cevap["gerekce"] + kontrol_notu
         if celiski:
             # Taslak atılmaz, ekip kontrolünde dikkat çeksin diye işaretlenir.
@@ -199,6 +206,16 @@ def uygunsuz_ifadeler(metin: str) -> list[str]:
     for ifade in UYGUNSUZ_IFADELER:
         bulunan += re.findall(rf"\b{ifade}\w*", metin, flags=re.IGNORECASE)
     return bulunan
+
+
+# Türkçe metinde olmaması gereken yazı sistemleri: Kiril, Arap, Çince/Japonca, Korece ve
+# tam genişlikli noktalama. Yunan harfleri bilerek yok (Ω, μ gibi birimler geçebilir).
+_YABANCI_YAZI = re.compile(r"[\u0400-\u04ff\u0600-\u06ff\u3000-\u9fff\uac00-\ud7af\uff00-\uffef]+")
+
+
+def yabanci_yazi(metin: str) -> list[str]:
+    """Metinde geçen Türkçe dışı yazı parçalarını döndürür."""
+    return _YABANCI_YAZI.findall(metin)
 
 
 # Karar ile metnin çeliştiğini gösteren ifadeler: karar "Öneri Değil" iken metin öneri
