@@ -308,11 +308,33 @@ def _excel_baslat():
     return win32com.client.DispatchEx("Excel.Application")
 
 
+def _acik_kitabi_bul(adresler: list[str]):
+    """Dosya bu bilgisayarda çalışan bir Excel'de zaten açıksa (Excel, kitap) döndürür.
+
+    Aynı hesap aynı SharePoint dosyasını iki ayrı Excel'de açamaz; açıksa ona yazılır.
+    """
+    try:
+        import win32com.client
+
+        excel = win32com.client.GetActiveObject("Excel.Application")
+    except Exception:
+        return None  # çalışan Excel yok
+    aranan = {unquote(a).casefold() for a in adresler}
+    try:
+        for kitap in excel.Workbooks:
+            if unquote(str(kitap.FullName)).casefold() in aranan:
+                return excel, kitap
+    except Exception:
+        return None
+    return None
+
+
 class ExcelUygulamasi:
     """Dosyayı bilgisayardaki Excel uygulamasıyla, oturum açmış kullanıcının hesabıyla açar.
 
     Bir insanın Excel'de dosyayı açıp hücreye yazması ve kaydetmesiyle aynıdır; IT izni
-    gerekmez. Excel ekranda görünmez. Her yazmadan sonra kaydedilir; birlikte düzenleme
+    gerekmez. Excel ekranda görünmez. Dosya bu bilgisayarda zaten açıksa açık olana yazılır
+    ve o pencere kapatılmaz. Her yazmadan sonra kaydedilir; birlikte düzenleme
     sayesinde dosya başkalarında açıkken de yazılabilir ve Excel dosyanın yapısını korur.
     """
 
@@ -322,6 +344,7 @@ class ExcelUygulamasi:
         *,
         gorunur: bool = False,
         excel_olustur: Callable = _excel_baslat,
+        acik_kitap_bul: Callable = _acik_kitabi_bul,
         bekle: Callable[[float], None] = time.sleep,
         mesgul_suresi: float = 120,
     ):
@@ -329,7 +352,10 @@ class ExcelUygulamasi:
         self._adres = dosya_adresi.strip().split("?", 1)[0]
         self._gorunur = gorunur
         self._excel_olustur = excel_olustur
+        self._acik_kitap_bul = acik_kitap_bul
         self._bekle = bekle
+        # False ise dosya zaten açıktı; iş bitince kapatılmaz.
+        self._kendimiz_actik = True
         self._mesgul_suresi = mesgul_suresi
         self._excel = None
         self._kitap = None
@@ -371,6 +397,10 @@ class ExcelUygulamasi:
         self._kaydet()
 
     def kapat(self) -> None:
+        if not self._kendimiz_actik:
+            # Kullanıcının açık Excel'i: yazılanlar zaten kaydedildi, pencereye dokunulmaz.
+            self._kitap = self._excel = None
+            return
         if self._kitap is not None:
             try:
                 kitap = self._kitap
@@ -389,6 +419,18 @@ class ExcelUygulamasi:
     def _ac(self):
         if self._kitap is not None:
             return self._kitap
+        bulunan = self._acik_kitap_bul(self._adres_adaylari())
+        if bulunan is not None:
+            self._excel, self._kitap = bulunan
+            self._kendimiz_actik = False
+            if self._tekrarla(lambda: self._kitap.ReadOnly):
+                self._kitap = self._excel = None
+                raise ExcelHatasi(
+                    "Dosya bu bilgisayarda salt okunur olarak açık. Excel'deki dosyayı kapatın "
+                    "ya da düzenlemeyi etkinleştirin."
+                )
+            return self._kitap
+        self._kendimiz_actik = True
         self._excel = self._excel_olustur()
         try:
             excel = self._excel
@@ -433,7 +475,7 @@ class ExcelUygulamasi:
     def _dosyayi_ac(self):
         """Excel sürümüne göre adresin çözülmüş (boşluklu, Türkçe harfli) ya da kodlu
         (%20, %C3%BC) hâli çalışır; önce çözülmüş hâl denenir."""
-        adaylar = list(dict.fromkeys([unquote(self._adres), self._adres]))
+        adaylar = self._adres_adaylari()
         for sira, adres in enumerate(adaylar):
             try:
                 return self._tekrarla(
@@ -444,6 +486,9 @@ class ExcelUygulamasi:
             except Exception:
                 if sira == len(adaylar) - 1:
                     raise
+
+    def _adres_adaylari(self) -> list[str]:
+        return list(dict.fromkeys([unquote(self._adres), self._adres]))
 
     def _sayfa(self, ad: str):
         try:

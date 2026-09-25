@@ -153,6 +153,7 @@ def excel(ornek_excel):
 
 
 def _kaynak(excel, adres=ADRES, **secenekler):
+    secenekler.setdefault("acik_kitap_bul", lambda _: None)
     return ExcelUygulamasi(adres, excel_olustur=lambda: excel, bekle=lambda _: None, **secenekler)
 
 
@@ -197,7 +198,9 @@ def test_gorunur_modda_excel_ekranda_ve_uyarilar_acik(excel, tmp_path):
 def test_excel_mesgulse_bekleyip_tekrar_dener(excel, tmp_path):
     excel.mesgul_kalan = 3
     beklemeler = []
-    kaynak = ExcelUygulamasi(ADRES, excel_olustur=lambda: excel, bekle=beklemeler.append)
+    kaynak = ExcelUygulamasi(
+        ADRES, excel_olustur=lambda: excel, acik_kitap_bul=lambda _: None, bekle=beklemeler.append
+    )
     kaynak.indir(tmp_path / "k.xlsx")
     assert beklemeler == [1, 1, 1] and excel.Visible is False
     kaynak.kapat()
@@ -208,6 +211,34 @@ def test_excel_hep_mesgulse_anlasilir_hata(excel, tmp_path):
     with pytest.raises(ExcelHatasi, match="meşgul kaldı.*excel_gorunur = true"):
         _kaynak(excel, mesgul_suresi=0).indir(tmp_path / "k.xlsx")
     assert excel.cikti
+
+
+def test_dosya_zaten_aciksa_ona_yazilir_ve_kapatilmaz(excel, tmp_path):
+    acik = SahteKitap(excel, excel.yol, salt_okunur=False)
+    aranan = []
+
+    def bul(adresler):
+        aranan.extend(adresler)
+        return excel, acik
+
+    def olustur():
+        raise AssertionError("yeni Excel açılmamalı")
+
+    kaynak = ExcelUygulamasi(ADRES, excel_olustur=olustur, acik_kitap_bul=bul, bekle=lambda _: None)
+    kaynak.indir(tmp_path / "k.xlsx")
+    kaynak.yaz("Genel Tablo", {"K9": "Metin"})
+    kaynak.kapat()
+
+    assert aranan == [COZULMUS, ADRES]
+    assert openpyxl.load_workbook(excel.yol)["Genel Tablo"]["K9"].value == "Metin"
+    assert excel.kapanan_kitap == 0 and not excel.cikti  # kullanıcının penceresine dokunulmaz
+
+
+def test_dosya_salt_okunur_aciksa_anlasilir_hata(excel, tmp_path):
+    acik = SahteKitap(excel, excel.yol, salt_okunur=True)
+    with pytest.raises(ExcelHatasi, match="salt okunur olarak açık"):
+        _kaynak(excel, acik_kitap_bul=lambda _: (excel, acik)).indir(tmp_path / "k.xlsx")
+    assert not excel.cikti
 
 
 def test_salt_okunur_acilirsa_anlasilir_hata_ve_excel_kapanir(excel, tmp_path):
