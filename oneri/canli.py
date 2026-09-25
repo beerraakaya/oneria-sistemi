@@ -176,16 +176,14 @@ def calistir(
         yaz("Doldurulacak yeni öneri yok.")
         return ozet
 
-    yaz(f"{len(doldurulacak)} öneri doldurulacak. Hafıza hazırlanıyor...")
+    yaz(f"{len(doldurulacak)} öneri doldurulacak.")
     # Ekibin henüz kontrol etmediği taslaklar örnek alınmaz; yapay zekâ kendi
     # yazdıklarından değil, ekibin yazdıklarından öğrenir.
     haric = {o.satir for o in oneriler if o.anahtar in kontrol_bekleyen}
     asistan = asistani_kur(ayarlar, ollama, oneriler, haric)
     try:
         sutun_sayisi = max(column_index_from_string(h) for h in harf.values())
-        for sira, oneri in enumerate(doldurulacak, start=1):
-            yaz(f"[{sira}/{len(doldurulacak)}] Satır {oneri.satir} değerlendiriliyor...")
-            baslangic = time.monotonic()
+        for oneri in doldurulacak:
             try:
                 taslak = asistan.degerlendirici.degerlendir(oneri)
             except GecersizCevap as hata:
@@ -211,10 +209,7 @@ def calistir(
             depo.kaydet(oneri, taslak, simdi)
             boya(oneri.satir, ayarlar.taslak_rengi)
             ozet.yazilan += 1
-            yaz(
-                f"Satır {oneri.satir} ({oneri.konu}): {taslak.onay_durumu} yazıldı."
-                f" ({_sure(time.monotonic() - baslangic)})"
-            )
+            yaz(f"Satır {oneri.satir} ({oneri.konu}): {taslak.onay_durumu} yazıldı.")
     finally:
         asistan.kapat()
     return ozet
@@ -227,7 +222,3 @@ def _hala_bos_ve_ayni(hucreler: list, oneri: Oneri, harf: dict[str, str]) -> boo
     ayni = all(deger(alan) == getattr(oneri, alan) for alan in KIMLIK_ALANLARI)
     return ayni and not any(deger(alan) for alan in YAZILAN_ALANLAR)
 
-
-def _sure(saniye: float) -> str:
-    dakika, saniye = divmod(round(saniye), 60)
-    return f"{dakika} dk {saniye} sn" if dakika else f"{saniye} sn"

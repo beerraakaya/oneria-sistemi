@@ -19,12 +19,9 @@ def model_yuklu_mu(model: str, yuklu: list[str]) -> bool:
 
 
 class Ollama:
-    def __init__(self, adres: str, zaman_asimi: float = 900, bekleme: str = ""):
-        """`bekleme`: model son kullanımdan sonra bellekte ne kadar kalsın (örn. "40m").
-        Boşsa Ollama'nın varsayılanı (5 dakika) geçerlidir."""
+    def __init__(self, adres: str, zaman_asimi: float = 900):
         self._adres = adres.rstrip("/")
         self._zaman_asimi = zaman_asimi
-        self._bekleme = bekleme
         self._oturum = requests.Session()
         # Ollama şirket içinde çalışır; bilgisayardaki proxy ayarları ona giden istekleri bozmasın.
         self._oturum.trust_env = False
@@ -34,8 +31,7 @@ class Ollama:
 
     def gom(self, model: str, metinler: list[str]) -> list[list[float]]:
         """Her metin için bir anlam vektörü döndürür."""
-        govde = {"model": model, "input": metinler, **self._bellekte_tut()}
-        return self._istek("POST", "/api/embed", govde)["embeddings"]
+        return self._istek("POST", "/api/embed", {"model": model, "input": metinler})["embeddings"]
 
     def json_sohbet(self, model: str, mesajlar: list[dict], sema: dict, secenekler: dict) -> dict:
         """Modelden `sema`ya uyan bir JSON cevap ister."""
@@ -48,7 +44,6 @@ class Ollama:
                 "format": sema,
                 "stream": False,
                 "options": secenekler,
-                **self._bellekte_tut(),
             },
         )
         icerik = cevap["message"]["content"]
@@ -56,9 +51,6 @@ class Ollama:
             return json.loads(icerik)
         except json.JSONDecodeError as hata:
             raise GecersizCevap(f"Model geçerli JSON döndürmedi: {icerik[:300]}") from hata
-
-    def _bellekte_tut(self) -> dict:
-        return {"keep_alive": self._bekleme} if self._bekleme else {}
 
     def _istek(self, yontem: str, yol: str, govde: dict | None = None) -> dict:
         try:

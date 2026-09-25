@@ -48,7 +48,7 @@ def kontrol(ayarlar: Ayarlar, _args) -> int:
         sorun = True
 
     print(f"Ollama: {ayarlar.ollama_adresi}")
-    yuklu = _ollama(ayarlar).yuklu_modeller()
+    yuklu = Ollama(ayarlar.ollama_adresi).yuklu_modeller()
     for model in (ayarlar.dil_modeli, ayarlar.gomme_modeli):
         if model_yuklu_mu(model, yuklu):
             print(f"  {model}: yüklü")
@@ -69,7 +69,7 @@ def kor_test(ayarlar: Ayarlar, args) -> int:
     # Yapay zekânın yazıp ekibin düzeltmediği taslaklar test edilmez (kendi cevabını bulurdu);
     # henüz kontrol edilmemiş olanlar örnek de alınmaz.
     kendi, kontrolsuz = _yapay_zeka_satirlari(ayarlar, oneriler)
-    asistan = asistani_kur(ayarlar, _ollama(ayarlar), oneriler, kontrolsuz)
+    asistan = asistani_kur(ayarlar, Ollama(ayarlar.ollama_adresi), oneriler, kontrolsuz)
     try:
         test = sorted(
             (o.oneri for o in asistan.hafiza.ornekler if o.ozgun and o.oneri.satir not in kendi),
@@ -112,7 +112,7 @@ def degerlendir(ayarlar: Ayarlar, args) -> int:
     kaynak.kapat()
     oneriler = fabrika_onerileri(ayarlar)
     _, kontrolsuz = _yapay_zeka_satirlari(ayarlar, oneriler)
-    asistan = asistani_kur(ayarlar, _ollama(ayarlar), oneriler, kontrolsuz)
+    asistan = asistani_kur(ayarlar, Ollama(ayarlar.ollama_adresi), oneriler, kontrolsuz)
     try:
         oneri = next((o for o in asistan.oneriler if o.satir == args.satir), None)
         if oneri is None:
@@ -134,10 +134,6 @@ def degerlendir(ayarlar: Ayarlar, args) -> int:
         print(f"  Durum        : {oneri.durum}")
         print(f"  Değerlendirme: {oneri.degerlendirme}")
     return 0
-
-
-def _ollama(ayarlar: Ayarlar) -> Ollama:
-    return Ollama(ayarlar.ollama_adresi, bekleme=ayarlar.model_bekleme_suresi)
 
 
 def _yapay_zeka_satirlari(ayarlar: Ayarlar, oneriler) -> tuple[set[int], set[int]]:
@@ -171,7 +167,7 @@ def calistir_komutu(ayarlar: Ayarlar, args) -> int:
                     ozet = calistir(
                         ayarlar,
                         kaynak,
-                        _ollama(ayarlar),
+                        Ollama(ayarlar.ollama_adresi),
                         depo,
                         datetime.now(),
                         deneme=args.deneme,

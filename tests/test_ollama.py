@@ -47,16 +47,3 @@ def test_ollama_kapaliysa_anlasilir_hata():
         bos_port = soket.getsockname()[1]
     with pytest.raises(OllamaHatasi, match="bağlanılamadı"):
         Ollama(f"http://127.0.0.1:{bos_port}").yuklu_modeller()
-
-
-def test_model_bellekte_tutma_suresi_gonderilir(sahte_ollama):
-    ollama = Ollama(sahte_ollama.adres, bekleme="40m")
-    ollama.json_sohbet("qwen2.5", [{"role": "user", "content": "x"}], {"type": "object"}, {})
-    ollama.gom("bge-m3", ["metin"])
-    govdeler = [govde for yol, govde in sahte_ollama.istekler if yol in ("/api/chat", "/api/embed")]
-    assert [g["keep_alive"] for g in govdeler] == ["40m", "40m"]
-
-
-def test_bellekte_tutma_suresi_bossa_gonderilmez(sahte_ollama):
-    Ollama(sahte_ollama.adres).gom("bge-m3", ["metin"])
-    assert all("keep_alive" not in govde for _, govde in sahte_ollama.istekler)
