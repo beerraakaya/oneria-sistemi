@@ -57,10 +57,16 @@ def tek_calisma(klasor: Path, eskime_saniyesi: float = 3 * 3600) -> Iterator[Non
     try:
         tanitici = os.open(kilit, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     except FileExistsError:
-        if time.time() - kilit.stat().st_mtime < eskime_saniyesi:
+        try:
+            sahibi = int(kilit.read_text().strip() or 0)
+        except (OSError, ValueError):
+            sahibi = 0
+        yeni = time.time() - kilit.stat().st_mtime < eskime_saniyesi
+        if yeni and _surec_calisiyor(sahibi):
             raise CalismaSuruyor(f"Önceki çalışma sürüyor ({kilit}).") from None
-        # Bilgisayar çalışma sırasında kapandıysa kilit dosyası kalmıştır.
-        kilit.unlink()
+        # Kilidi bırakan program artık çalışmıyor: bilgisayar kapanmış, pencere kapatılmış
+        # ya da program zorla sonlandırılmış. Kilit kalmıştır, temizlenir.
+        kilit.unlink(missing_ok=True)
         tanitici = os.open(kilit, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     try:
         os.write(tanitici, str(os.getpid()).encode())
@@ -68,6 +74,39 @@ def tek_calisma(klasor: Path, eskime_saniyesi: float = 3 * 3600) -> Iterator[Non
         yield
     finally:
         kilit.unlink(missing_ok=True)
+
+
+def _surec_calisiyor(pid: int) -> bool:
+    """Bu numaralı program hâlâ çalışıyor mu?"""
+    if pid <= 0:
+        return False
+    if os.name == "nt":
+        # Windows'ta os.kill programı sonlandırır; bu yüzden yalnızca durumu sorulur.
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32")
+        kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        kernel32.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+        kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+        tanitici = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not tanitici:
+            return False
+        try:
+            kod = wintypes.DWORD()
+            if not kernel32.GetExitCodeProcess(tanitici, ctypes.byref(kod)):
+                return True
+            return kod.value == 259  # STILL_ACTIVE
+        finally:
+            kernel32.CloseHandle(tanitici)
+    try:
+        os.kill(pid, 0)
+    except PermissionError:
+        return True
+    except (OSError, OverflowError):
+        return False
+    return True
 
 
 def calistir(

@@ -196,7 +196,27 @@ def test_ayni_anda_iki_calisma_olmaz(tmp_path):
 
 
 def test_eski_kilit_temizlenir(tmp_path):
-    (tmp_path / "calisiyor.kilit").write_text("123")
+    import os
+
+    (tmp_path / "calisiyor.kilit").write_text(str(os.getpid()))
     with tek_calisma(tmp_path, eskime_saniyesi=0):
         pass
     assert not (tmp_path / "calisiyor.kilit").exists()
+
+
+def test_calismayan_programin_kilidi_hemen_temizlenir(tmp_path):
+    # Program zorla kapatılınca kilit kalır; içindeki numaralı program artık yoktur.
+    (tmp_path / "calisiyor.kilit").write_text("99999999")
+    with tek_calisma(tmp_path):
+        pass
+    assert not (tmp_path / "calisiyor.kilit").exists()
+
+
+def test_calisan_programin_kilidine_dokunulmaz(tmp_path):
+    import os
+
+    (tmp_path / "calisiyor.kilit").write_text(str(os.getpid()))
+    with pytest.raises(CalismaSuruyor):
+        with tek_calisma(tmp_path):
+            pass
+    assert (tmp_path / "calisiyor.kilit").exists()
