@@ -21,6 +21,10 @@ class Ayarlar:
     # Talimat + örnekler en fazla ~6-7 bin token tutuyor. Ollama sığmayan kısmı sessizce
     # kestiği için varsayılanı (2048-4096) yetmez.
     baglam_uzunlugu: int = 12288
+    # Model son kullanımdan sonra bellekte bu kadar kalır. Program 30 dakikada bir çalıştığı
+    # için 40 dakika: model her çalışmada diskten yeniden yüklenmez (büyük modelde 1-2 dakika).
+    # Bellek darsa kısaltın ya da boş bırakın (Ollama varsayılanı: 5 dakika).
+    model_bekleme_suresi: str = "40m"
     # 0: aynı talimata her seferinde aynı cevap; testler karşılaştırılabilir olur.
     sicaklik: float = 0.0
     tohum: int = 42
