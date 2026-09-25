@@ -20,7 +20,7 @@ def kaynagi_hazirla(ayarlar: Ayarlar) -> tuple[ExcelKaynagi, Ayarlar]:
     if not ayarlar.sharepoint_dosya_adresi:
         return YerelExcel(ayarlar.excel_yolu), ayarlar
     if ayarlar.yazma_yontemi == "excel":
-        kaynak = ExcelUygulamasi(ayarlar.sharepoint_dosya_adresi)
+        kaynak = ExcelUygulamasi(ayarlar.sharepoint_dosya_adresi, gorunur=ayarlar.excel_gorunur)
     elif ayarlar.yazma_yontemi == "graph":
         kaynak = _graph_kaynagi(ayarlar)
     else:

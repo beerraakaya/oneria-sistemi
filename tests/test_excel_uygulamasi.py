@@ -16,7 +16,8 @@ from oneri.kaynak import ExcelUygulamasi
 from oneri.ollama import Ollama
 from oneri.taslaklar import TaslakDeposu
 
-ADRES = "https://sirket.sharepoint.com/sites/Oneri/Shared%20Documents/Oneri.xlsx"
+ADRES = "https://sirket.sharepoint.com/sites/Oneri/Shared%20Documents/%C3%96neri.xlsx"
+COZULMUS = "https://sirket.sharepoint.com/sites/Oneri/Shared Documents/Öneri.xlsx"
 
 
 class SahteIc:
@@ -104,15 +105,23 @@ class SahteKitaplar:
 
     def Open(self, adres, UpdateLinks, ReadOnly):
         self._uygulama.acilan.append(adres)
-        if self._uygulama.acilamaz:
+        if self._uygulama.acilamaz or adres in self._uygulama.acilamayan_adresler:
             raise OSError("Microsoft Excel dosyaya erişemiyor")
         return SahteKitap(self._uygulama, self._uygulama.yol, self._uygulama.salt_okunur)
+
+
+class ComHatasi(Exception):
+    """pywin32'nin com_error'u gibi: ilk argüman Windows hata kodu."""
+
+
+MESGUL = ComHatasi(-2147418111, "Call was rejected by callee.", None, None)
 
 
 class SahteExcel:
     def __init__(self, yol):
         self.yol = yol
-        self.Visible = True
+        self._gorunur = True
+        self.mesgul_kalan = 0  # açılışta kaç komutu "meşgulüm" diye geri çevireceği
         self.DisplayAlerts = True
         self.Workbooks = SahteKitaplar(self)
         self.acilan: list[str] = []
@@ -121,6 +130,18 @@ class SahteExcel:
         self.cikti = False
         self.salt_okunur = False
         self.acilamaz = False
+        self.acilamayan_adresler: set[str] = set()
+
+    @property
+    def Visible(self):
+        return self._gorunur
+
+    @Visible.setter
+    def Visible(self, deger):
+        if self.mesgul_kalan:
+            self.mesgul_kalan -= 1
+            raise MESGUL
+        self._gorunur = deger
 
     def Quit(self):
         self.cikti = True
@@ -131,14 +152,14 @@ def excel(ornek_excel):
     return SahteExcel(ornek_excel)
 
 
-def _kaynak(excel, adres=ADRES):
-    return ExcelUygulamasi(adres, excel_olustur=lambda: excel)
+def _kaynak(excel, adres=ADRES, **secenekler):
+    return ExcelUygulamasi(adres, excel_olustur=lambda: excel, bekle=lambda _: None, **secenekler)
 
 
 def test_dosya_gorunmeden_acilir_ve_kopyasi_alinir(excel, tmp_path):
     kaynak = _kaynak(excel, ADRES + "?web=1")
     yol = kaynak.indir(tmp_path / "kopya.xlsx")
-    assert excel.acilan == [ADRES]  # "?web=1" atılır
+    assert excel.acilan == [COZULMUS]  # "?web=1" atılır, önce çözülmüş adres denenir
     assert (excel.Visible, excel.DisplayAlerts) == (False, False)
     assert openpyxl.load_workbook(yol)["Genel Tablo"]["H9"].value == "İş Güvenliği Risk Azaltma"
     kaynak.kapat()
@@ -162,6 +183,33 @@ def test_satir_okur_yazar_boyar_ve_her_seferinde_kaydeder(excel):
     kaynak.kapat()
 
 
+def test_cozulmus_adres_acilmazsa_kodlu_adres_denenir(excel, tmp_path):
+    excel.acilamayan_adresler = {COZULMUS}
+    _kaynak(excel).indir(tmp_path / "k.xlsx")
+    assert excel.acilan == [COZULMUS, ADRES]
+
+
+def test_gorunur_modda_excel_ekranda_ve_uyarilar_acik(excel, tmp_path):
+    _kaynak(excel, gorunur=True).indir(tmp_path / "k.xlsx")
+    assert (excel.Visible, excel.DisplayAlerts) == (True, True)
+
+
+def test_excel_mesgulse_bekleyip_tekrar_dener(excel, tmp_path):
+    excel.mesgul_kalan = 3
+    beklemeler = []
+    kaynak = ExcelUygulamasi(ADRES, excel_olustur=lambda: excel, bekle=beklemeler.append)
+    kaynak.indir(tmp_path / "k.xlsx")
+    assert beklemeler == [1, 1, 1] and excel.Visible is False
+    kaynak.kapat()
+
+
+def test_excel_hep_mesgulse_anlasilir_hata(excel, tmp_path):
+    excel.mesgul_kalan = 10**6
+    with pytest.raises(ExcelHatasi, match="meşgul kaldı.*excel_gorunur = true"):
+        _kaynak(excel, mesgul_suresi=0).indir(tmp_path / "k.xlsx")
+    assert excel.cikti
+
+
 def test_salt_okunur_acilirsa_anlasilir_hata_ve_excel_kapanir(excel, tmp_path):
     excel.salt_okunur = True
     with pytest.raises(ExcelHatasi, match="salt okunur"):
@@ -173,6 +221,7 @@ def test_acilamazsa_anlasilir_hata_ve_excel_kapanir(excel, tmp_path):
     excel.acilamaz = True
     with pytest.raises(ExcelHatasi, match="Excel dosyayı açamadı"):
         _kaynak(excel).indir(tmp_path / "k.xlsx")
+    assert excel.acilan == [COZULMUS, ADRES]
     assert excel.cikti
 
 

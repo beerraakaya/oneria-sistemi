@@ -291,6 +291,9 @@ def _anlasilir_hata(cevap: requests.Response) -> str:
 
 # Excel'in Interior.ColorIndex için "dolgu yok" değeri (xlNone).
 _DOLGU_YOK = -4142
+# Excel açılırken ya da arka planda çalışırken komutları "meşgulüm" diye geri çevirir:
+# RPC_E_CALL_REJECTED ("Call was rejected by callee") ve RPC_E_SERVERCALL_RETRYLATER.
+_EXCEL_MESGUL = {-2147418111, -2147417846}
 
 
 def _excel_baslat():
@@ -313,10 +316,21 @@ class ExcelUygulamasi:
     sayesinde dosya başkalarında açıkken de yazılabilir ve Excel dosyanın yapısını korur.
     """
 
-    def __init__(self, dosya_adresi: str, *, excel_olustur: Callable = _excel_baslat):
+    def __init__(
+        self,
+        dosya_adresi: str,
+        *,
+        gorunur: bool = False,
+        excel_olustur: Callable = _excel_baslat,
+        bekle: Callable[[float], None] = time.sleep,
+        mesgul_suresi: float = 120,
+    ):
         # "?web=1" gibi ekler Excel'in dosyayı açmasını engelleyebilir.
         self._adres = dosya_adresi.strip().split("?", 1)[0]
+        self._gorunur = gorunur
         self._excel_olustur = excel_olustur
+        self._bekle = bekle
+        self._mesgul_suresi = mesgul_suresi
         self._excel = None
         self._kitap = None
         self.ad = self._adres
@@ -326,45 +340,48 @@ class ExcelUygulamasi:
         hedef.parent.mkdir(parents=True, exist_ok=True)
         hedef.unlink(missing_ok=True)
         try:
-            kitap.SaveCopyAs(str(hedef.resolve()))
+            self._tekrarla(lambda: kitap.SaveCopyAs(str(hedef.resolve())))
         except Exception as hata:
             raise ExcelHatasi(f"Dosyanın kopyası alınamadı: {hata}") from hata
         return hedef
 
     def satir_oku(self, sayfa: str, satir: int, sutun_sayisi: int) -> list:
-        aralik = self._sayfa(sayfa).Range(f"A{satir}:{get_column_letter(sutun_sayisi)}{satir}")
-        degerler = aralik.Value
+        tablo = self._sayfa(sayfa)
+        adres = f"A{satir}:{get_column_letter(sutun_sayisi)}{satir}"
+        degerler = self._tekrarla(lambda: tablo.Range(adres).Value)
         hucreler = list(degerler[0]) if isinstance(degerler, tuple) else [degerler]
         return hucreler + [None] * (sutun_sayisi - len(hucreler))
 
     def yaz(self, sayfa: str, hucreler: dict[str, str]) -> None:
         tablo = self._sayfa(sayfa)
         for adres, deger in hucreler.items():
-            tablo.Range(adres).Value = deger
+            self._tekrarla(lambda: setattr(tablo.Range(adres), "Value", deger))
         self._kaydet()
 
     def boya(self, sayfa: str, adresler: list[str], renk: str | None) -> None:
         tablo = self._sayfa(sayfa)
+        if renk:
+            kod = renk.lstrip("#")
+            # Excel renkleri ters sırada (mavi, yeşil, kırmızı) tutar.
+            ozellik, deger = "Color", int(kod[4:6] + kod[2:4] + kod[0:2], 16)
+        else:
+            ozellik, deger = "ColorIndex", _DOLGU_YOK
         for adres in adresler:
-            ic = tablo.Range(adres).Interior
-            if renk:
-                kod = renk.lstrip("#")
-                # Excel renkleri ters sırada (mavi, yeşil, kırmızı) tutar.
-                ic.Color = int(kod[4:6] + kod[2:4] + kod[0:2], 16)
-            else:
-                ic.ColorIndex = _DOLGU_YOK
+            self._tekrarla(lambda: setattr(tablo.Range(adres).Interior, ozellik, deger))
         self._kaydet()
 
     def kapat(self) -> None:
         if self._kitap is not None:
             try:
-                self._kitap.Close(SaveChanges=True)
+                kitap = self._kitap
+                self._tekrarla(lambda: kitap.Close(SaveChanges=True), sure=10)
             except Exception:
                 pass
             self._kitap = None
         if self._excel is not None:
             try:
-                self._excel.Quit()
+                excel = self._excel
+                self._tekrarla(lambda: excel.Quit(), sure=10)
             except Exception:
                 pass
             self._excel = None
@@ -374,10 +391,12 @@ class ExcelUygulamasi:
             return self._kitap
         self._excel = self._excel_olustur()
         try:
-            self._excel.Visible = False
-            self._excel.DisplayAlerts = False  # kaydetme, bağlantı güncelleme vb. soruları sorma
-            self._kitap = self._excel.Workbooks.Open(self._adres, UpdateLinks=0, ReadOnly=False)
-            if self._kitap.ReadOnly:
+            excel = self._excel
+            self._tekrarla(lambda: setattr(excel, "Visible", self._gorunur))
+            # Kaydetme, bağlantı güncelleme vb. soruları sorma; görünür modda sorun görülebilsin.
+            self._tekrarla(lambda: setattr(excel, "DisplayAlerts", self._gorunur))
+            self._kitap = self._dosyayi_ac()
+            if self._tekrarla(lambda: self._kitap.ReadOnly):
                 raise ExcelHatasi(
                     "Dosya salt okunur açıldı. Bu bilgisayarda Excel'de oturum açmış hesabın "
                     "dosyayı düzenleme yetkisi olmalı (Excel > Dosya > Hesap)."
@@ -392,9 +411,44 @@ class ExcelUygulamasi:
             ) from hata
         return self._kitap
 
+    def _tekrarla(self, islem: Callable, sure: float | None = None):
+        """Excel "meşgulüm" derse bekleyip tekrar dener; süre dolarsa vazgeçer."""
+        sure = self._mesgul_suresi if sure is None else min(sure, self._mesgul_suresi)
+        baslangic = time.monotonic()
+        while True:
+            try:
+                return islem()
+            except Exception as hata:
+                kod = hata.args[0] if hata.args else None
+                if kod not in _EXCEL_MESGUL:
+                    raise
+                if time.monotonic() - baslangic >= sure:
+                    raise ExcelHatasi(
+                        f"Excel {sure:.0f} saniye boyunca meşgul kaldı; bir pencere "
+                        "(oturum açma, lisans, güncelleme) cevap bekliyor olabilir. ayarlar.toml'a "
+                        "excel_gorunur = true yazıp tekrar çalıştırarak Excel'de ne çıktığına bakın."
+                    ) from hata
+                self._bekle(1)
+
+    def _dosyayi_ac(self):
+        """Excel sürümüne göre adresin çözülmüş (boşluklu, Türkçe harfli) ya da kodlu
+        (%20, %C3%BC) hâli çalışır; önce çözülmüş hâl denenir."""
+        adaylar = list(dict.fromkeys([unquote(self._adres), self._adres]))
+        for sira, adres in enumerate(adaylar):
+            try:
+                return self._tekrarla(
+                    lambda: self._excel.Workbooks.Open(adres, UpdateLinks=0, ReadOnly=False)
+                )
+            except ExcelHatasi:
+                raise
+            except Exception:
+                if sira == len(adaylar) - 1:
+                    raise
+
     def _sayfa(self, ad: str):
         try:
-            return self._ac().Worksheets(ad)
+            kitap = self._ac()
+            return self._tekrarla(lambda: kitap.Worksheets(ad))
         except ExcelHatasi:
             raise
         except Exception as hata:
@@ -402,6 +456,6 @@ class ExcelUygulamasi:
 
     def _kaydet(self) -> None:
         try:
-            self._kitap.Save()
+            self._tekrarla(self._kitap.Save)
         except Exception as hata:
             raise ExcelHatasi(f"Excel dosyası kaydedilemedi: {hata}") from hata

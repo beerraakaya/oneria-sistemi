@@ -51,6 +51,8 @@ class Ayarlar:
     #   'graph': IT'nin Microsoft Entra'da verdiği uygulama izniyle (aşağıdaki graph_ ayarları).
     #   'excel': bilgisayardaki Excel uygulamasıyla, Excel'de oturum açmış hesabın yetkisiyle.
     yazma_yontemi: str = "graph"
+    # Excel yönteminde Excel'i ekranda göster (sorun ararken; normalde false).
+    excel_gorunur: bool = False
     # IT'nin Microsoft Entra'da (Azure AD) açtığı uygulamanın bilgileri.
     graph_kiraci: str = ""  # Directory (tenant) ID
     graph_uygulama: str = ""  # Application (client) ID
