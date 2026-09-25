@@ -93,7 +93,26 @@ Güvenlik kuralları:
 - Bilgisayar kapalıyken gelen öneriler kaybolmaz. Öneriler Excel'e Jotform üzerinden gelmeye devam eder; program açıldığında boş olan bütün satırları doldurur.
 - Bir çalışmada en fazla 20 öneri doldurur (`en_fazla_oneri`); kalanlar bir sonraki çalışmaya kalır.
 
-### 1. IT'nin yapması gerekenler
+### Yazma yöntemi: iki seçenek
+
+| | `yazma_yontemi = 'graph'` (varsayılan) | `yazma_yontemi = 'excel'` |
+|---|---|---|
+| Nasıl yazar? | Microsoft Graph ile, IT'nin açtığı uygulama kimliğiyle | Bilgisayardaki Excel uygulamasıyla, bir insan gibi dosyayı açıp yazar |
+| IT izni | Gerekir (aşağıdaki 1. adım) | Gerekmez |
+| Gerekenler | Tenant ID, Client ID, gizli anahtar | Excel masaüstü uygulaması; Excel'de oturum açmış hesabın dosyayı düzenleme yetkisi |
+| Sürüm geçmişinde | Uygulamanın adı | Excel'de oturum açmış kişinin adı |
+
+**Excel yöntemi için:**
+
+1. Excel'i açın ve **Dosya → Hesap** bölümünde şirket hesabının oturum açmış olduğunu kontrol edin.
+2. Öneri dosyasını Excel'de bir kez elle açın. "Salt okunur" ya da "Korumalı Görünüm" uyarısı çıkmadan düzenlenebildiğini görün.
+3. `ayarlar.toml` dosyasına `sharepoint_dosya_adresi` ve `yazma_yontemi = 'excel'` satırlarını yazın. `graph_` ayarlarına ve gizli anahtara gerek yoktur.
+4. `python -m pip install -r requirements.txt` komutunu çalıştırın; Excel'i yönetmek için gereken `pywin32` kurulur.
+5. Aşağıdaki 3. ve 4. adımlarla devam edin.
+
+Program Excel'i ekranda göstermeden ayrı bir pencerede açar; kullanıcının açık Excel'ine dokunmaz. Her satırı yazdıktan sonra kaydeder ve iş bitince Excel'i kapatır. Excel ancak o kullanıcının oturumu açıkken çalışabilir; ekranın kilitli olması sorun değildir.
+
+### 1. IT'nin yapması gerekenler (yalnızca `graph` yöntemi)
 
 Programın SharePoint'e yazabilmesi için Microsoft Entra ID'de (Azure AD) bir uygulama kaydı gerekir:
 
@@ -158,7 +177,7 @@ Program `calistir.bat` ile çalışır ve çıktılarını `veri\gunluk.log` dos
 schtasks /Create /TN "Oneri Asistani" /TR "\"C:\oneri-sistemi\calistir.bat\"" /SC DAILY /ST 08:00 /RI 30 /DU 10:00 /F
 ```
 
-**Bilgisayar açılınca bir kez:** `Win + R` > `shell:startup` yazın. Açılan klasöre `calistir.bat` dosyasının kısayolunu koyun.
+**Bilgisayar açılınca bir kez:** `Win + R` > `shell:startup` yazın. Açılan klasöre `acilista_calistir.bat` dosyasının kısayolunu koyun. Bu dosya, Ollama ve Excel hazır olsun diye 2 dakika bekleyip programı çalıştırır.
 
 Notlar:
 

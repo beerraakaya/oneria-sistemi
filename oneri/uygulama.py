@@ -8,15 +8,34 @@ from .ayarlar import Ayarlar
 from .degerlendirici import Degerlendirici
 from .excel import Oneri, onerileri_oku
 from .hafiza import Hafiza, VektorOnbellegi, ornek_alinabilir_mi
-from .kaynak import ExcelKaynagi, SharePointExcel, YerelExcel
+from .kaynak import ExcelKaynagi, ExcelUygulamasi, SharePointExcel, YerelExcel
 from .ollama import Ollama
 
 
 def kaynagi_hazirla(ayarlar: Ayarlar) -> tuple[ExcelKaynagi, Ayarlar]:
     """Excel'e erişimi kurar. SharePoint ayarlıysa dosyanın güncel hâli veri klasörüne
-    indirilir ve döndürülen ayarlardaki excel_yolu o kopyayı gösterir."""
+    indirilir ve döndürülen ayarlardaki excel_yolu o kopyayı gösterir.
+
+    İş bitince kaynak.kapat() çağrılmalıdır (Excel yönteminde Excel'i kapatır)."""
     if not ayarlar.sharepoint_dosya_adresi:
         return YerelExcel(ayarlar.excel_yolu), ayarlar
+    if ayarlar.yazma_yontemi == "excel":
+        kaynak = ExcelUygulamasi(ayarlar.sharepoint_dosya_adresi)
+    elif ayarlar.yazma_yontemi == "graph":
+        kaynak = _graph_kaynagi(ayarlar)
+    else:
+        raise ValueError(
+            f"yazma_yontemi '{ayarlar.yazma_yontemi}' olamaz; 'graph' ya da 'excel' yazın."
+        )
+    try:
+        yol = kaynak.indir(ayarlar.veri_klasoru / "sharepoint_kopya.xlsx")
+    except BaseException:
+        kaynak.kapat()
+        raise
+    return kaynak, replace(ayarlar, excel_yolu=yol)
+
+
+def _graph_kaynagi(ayarlar: Ayarlar) -> SharePointExcel:
     sir = os.environ.get("ONERI_GRAPH_SIRRI") or ayarlar.graph_sirri
     eksik = [
         ad
@@ -29,11 +48,9 @@ def kaynagi_hazirla(ayarlar: Ayarlar) -> tuple[ExcelKaynagi, Ayarlar]:
     ]
     if eksik:
         raise ValueError(f"SharePoint için eksik ayar: {', '.join(eksik)}")
-    kaynak = SharePointExcel(
+    return SharePointExcel(
         ayarlar.sharepoint_dosya_adresi, ayarlar.graph_kiraci, ayarlar.graph_uygulama, sir
     )
-    yol = kaynak.indir(ayarlar.veri_klasoru / "sharepoint_kopya.xlsx")
-    return kaynak, replace(ayarlar, excel_yolu=yol)
 
 
 def fabrika_onerileri(ayarlar: Ayarlar) -> list[Oneri]:

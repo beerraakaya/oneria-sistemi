@@ -47,6 +47,10 @@ class Ayarlar:
     # SharePoint'teki öneri Excel'inin adresi. Boşsa excel_yolu'ndaki dosya kullanılır
     # (denemek için: bilgisayardaki bir kopyaya yazar).
     sharepoint_dosya_adresi: str = ""
+    # SharePoint'e nasıl yazılacağı:
+    #   'graph': IT'nin Microsoft Entra'da verdiği uygulama izniyle (aşağıdaki graph_ ayarları).
+    #   'excel': bilgisayardaki Excel uygulamasıyla, Excel'de oturum açmış hesabın yetkisiyle.
+    yazma_yontemi: str = "graph"
     # IT'nin Microsoft Entra'da (Azure AD) açtığı uygulamanın bilgileri.
     graph_kiraci: str = ""  # Directory (tenant) ID
     graph_uygulama: str = ""  # Application (client) ID

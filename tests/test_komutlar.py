@@ -193,3 +193,33 @@ def test_sharepoint_ayari_eksikse_anlasilir_hata(tmp_path, ayarlar, capsys, monk
     )
     assert main(["--ayarlar", str(yol), "calistir"]) == 1
     assert "SharePoint için eksik ayar: graph_uygulama, ONERI_GRAPH_SIRRI" in capsys.readouterr().err
+
+
+def test_bilinmeyen_yazma_yontemi(tmp_path, ayarlar, capsys):
+    yol = tmp_path / "y.toml"
+    yol.write_text(
+        "sharepoint_dosya_adresi = 'https://sirket.sharepoint.com/sites/A/Shared Documents/o.xlsx'\n"
+        f"yazma_yontemi = 'posta'\nveri_klasoru = '{ayarlar.veri_klasoru}'\n",
+        encoding="utf-8",
+    )
+    assert main(["--ayarlar", str(yol), "kontrol"]) == 1
+    assert "yazma_yontemi 'posta' olamaz" in capsys.readouterr().err
+
+
+def test_excel_yontemi_graph_ayari_istemez(tmp_path, ayarlar, capsys, monkeypatch):
+    # Graph bilgileri olmadan Excel uygulaması denenir; bu test bilgisayarında Excel
+    # (pywin32) olmadığı için anlaşılır bir hata beklenir, "eksik ayar" değil.
+    import sys
+
+    monkeypatch.setitem(sys.modules, "win32com", None)
+    monkeypatch.setitem(sys.modules, "win32com.client", None)
+    yol = tmp_path / "e.toml"
+    yol.write_text(
+        "sharepoint_dosya_adresi = 'https://sirket.sharepoint.com/sites/A/Shared Documents/o.xlsx'\n"
+        f"yazma_yontemi = 'excel'\nveri_klasoru = '{ayarlar.veri_klasoru}'\n",
+        encoding="utf-8",
+    )
+    assert main(["--ayarlar", str(yol), "calistir"]) == 1
+    hata = capsys.readouterr().err
+    assert "pywin32" in hata and "eksik ayar" not in hata
+    assert not (ayarlar.veri_klasoru / "calisiyor.kilit").exists()

@@ -21,8 +21,10 @@ from .uygulama import asistani_kur, fabrika_onerileri, kaynagi_hazirla
 def kontrol(ayarlar: Ayarlar, _args) -> int:
     """Excel'i, kurallar dosyasını ve Ollama modellerini kontrol eder."""
     kaynak, ayarlar = kaynagi_hazirla(ayarlar)
+    kaynak.kapat()
     if ayarlar.sharepoint_dosya_adresi:
-        print(f"SharePoint: bağlandı, dosya indirildi ({kaynak.ad})")
+        yol = "Excel uygulaması" if ayarlar.yazma_yontemi == "excel" else "Microsoft Graph"
+        print(f"SharePoint ({yol}): bağlandı, dosya okundu ({kaynak.ad})")
     print(f"Excel: {ayarlar.excel_yolu} ({ayarlar.sayfa_adi} sayfası)")
     oneriler = fabrika_onerileri(ayarlar)
     ornekler = [o for o in oneriler if ornek_alinabilir_mi(o, ayarlar.en_kisa_degerlendirme)]
@@ -60,7 +62,8 @@ def kontrol(ayarlar: Ayarlar, _args) -> int:
 
 def kor_test(ayarlar: Ayarlar, args) -> int:
     """Yeni tarzda değerlendirilmiş önerileri cevapları gizleyerek yeniden değerlendirir."""
-    _, ayarlar = kaynagi_hazirla(ayarlar)
+    kaynak, ayarlar = kaynagi_hazirla(ayarlar)
+    kaynak.kapat()
     print("Hafıza hazırlanıyor (ilk çalıştırmada birkaç dakika sürebilir)...")
     oneriler = fabrika_onerileri(ayarlar)
     # Yapay zekânın yazıp ekibin düzeltmediği taslaklar test edilmez (kendi cevabını bulurdu);
@@ -105,7 +108,8 @@ def kor_test(ayarlar: Ayarlar, args) -> int:
 
 def degerlendir(ayarlar: Ayarlar, args) -> int:
     """Tek bir satır için taslak üretir ve ekrana yazar; Excel'e dokunmaz."""
-    _, ayarlar = kaynagi_hazirla(ayarlar)
+    kaynak, ayarlar = kaynagi_hazirla(ayarlar)
+    kaynak.kapat()
     oneriler = fabrika_onerileri(ayarlar)
     _, kontrolsuz = _yapay_zeka_satirlari(ayarlar, oneriler)
     asistan = asistani_kur(ayarlar, Ollama(ayarlar.ollama_adresi), oneriler, kontrolsuz)
@@ -157,18 +161,21 @@ def calistir_komutu(ayarlar: Ayarlar, args) -> int:
     try:
         with tek_calisma(ayarlar.veri_klasoru):
             kaynak, ayarlar = kaynagi_hazirla(ayarlar)
-            depo = TaslakDeposu(ayarlar.taslak_yolu)
             try:
-                ozet = calistir(
-                    ayarlar,
-                    kaynak,
-                    Ollama(ayarlar.ollama_adresi),
-                    depo,
-                    datetime.now(),
-                    deneme=args.deneme,
-                )
+                depo = TaslakDeposu(ayarlar.taslak_yolu)
+                try:
+                    ozet = calistir(
+                        ayarlar,
+                        kaynak,
+                        Ollama(ayarlar.ollama_adresi),
+                        depo,
+                        datetime.now(),
+                        deneme=args.deneme,
+                    )
+                finally:
+                    depo.kapat()
             finally:
-                depo.kapat()
+                kaynak.kapat()  # Excel yönteminde Excel'i kapatır
     except CalismaSuruyor as hata:
         print(f"{hata} Bu çalışma atlandı.")
         return 0

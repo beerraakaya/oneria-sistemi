@@ -1,4 +1,9 @@
-"""Öneri Excel'ine erişim: SharePoint'teki dosya (Microsoft Graph) ya da bilgisayardaki bir kopya.
+"""Öneri Excel'ine erişim yolları:
+
+- SharePointExcel: SharePoint'teki dosya, IT'nin verdiği uygulama izniyle (Microsoft Graph).
+- ExcelUygulamasi: SharePoint'teki dosya, bilgisayardaki Excel uygulaması ve oturum açmış
+  kullanıcının hesabıyla (IT izni gerekmez; yalnızca Windows).
+- YerelExcel: bilgisayardaki bir kopya (denemek için).
 
 Program Excel'e yalnızca hücre değeri ve dolgu rengi yazar; satır eklemez, silmez, sıralamaz.
 """
@@ -32,6 +37,9 @@ class ExcelKaynagi(Protocol):
 
     def boya(self, sayfa: str, adresler: list[str], renk: str | None) -> None:
         """Hücrelerin dolgu rengini değiştirir; renk None ise dolguyu kaldırır."""
+
+    def kapat(self) -> None:
+        """Açık bağlantıları ve uygulamaları kapatır."""
 
 
 class YerelExcel:
@@ -80,6 +88,9 @@ class YerelExcel:
                 s[adres].fill = dolgu
 
         self._degistir(sayfa, uygula)
+
+    def kapat(self) -> None:
+        pass
 
     def _degistir(self, sayfa: str, islem: Callable) -> None:
         kitap = openpyxl.load_workbook(self._yol)
@@ -152,6 +163,9 @@ class SharePointExcel:
                 self._istek("PATCH", f"{self._aralik(sayfa, adres)}/format/fill", json={"color": renk})
             else:
                 self._istek("POST", f"{self._aralik(sayfa, adres)}/format/fill/clear")
+
+    def kapat(self) -> None:
+        self._oturum.close()
 
     # --- Dosyayı bulma ---
 
@@ -273,3 +287,121 @@ def _anlasilir_hata(cevap: requests.Response) -> str:
     if cevap.status_code == 423:
         return f"Excel dosyası şu an kilitli (423); bir sonraki çalışmada tekrar denenecek. ({mesaj})"
     return f"SharePoint hatası {cevap.status_code}: {mesaj}"
+
+
+# Excel'in Interior.ColorIndex için "dolgu yok" değeri (xlNone).
+_DOLGU_YOK = -4142
+
+
+def _excel_baslat():
+    try:
+        import win32com.client  # pywin32; yalnızca Windows'ta kurulur
+    except ImportError as hata:
+        raise ExcelHatasi(
+            "Excel yöntemi için pywin32 gerekli ve yalnızca Windows'ta çalışır: "
+            "python -m pip install -r requirements.txt"
+        ) from hata
+    # DispatchEx her seferinde ayrı bir Excel açar; kullanıcının açık Excel'ine dokunulmaz.
+    return win32com.client.DispatchEx("Excel.Application")
+
+
+class ExcelUygulamasi:
+    """Dosyayı bilgisayardaki Excel uygulamasıyla, oturum açmış kullanıcının hesabıyla açar.
+
+    Bir insanın Excel'de dosyayı açıp hücreye yazması ve kaydetmesiyle aynıdır; IT izni
+    gerekmez. Excel ekranda görünmez. Her yazmadan sonra kaydedilir; birlikte düzenleme
+    sayesinde dosya başkalarında açıkken de yazılabilir ve Excel dosyanın yapısını korur.
+    """
+
+    def __init__(self, dosya_adresi: str, *, excel_olustur: Callable = _excel_baslat):
+        # "?web=1" gibi ekler Excel'in dosyayı açmasını engelleyebilir.
+        self._adres = dosya_adresi.strip().split("?", 1)[0]
+        self._excel_olustur = excel_olustur
+        self._excel = None
+        self._kitap = None
+        self.ad = self._adres
+
+    def indir(self, hedef: Path) -> Path:
+        kitap = self._ac()
+        hedef.parent.mkdir(parents=True, exist_ok=True)
+        hedef.unlink(missing_ok=True)
+        try:
+            kitap.SaveCopyAs(str(hedef.resolve()))
+        except Exception as hata:
+            raise ExcelHatasi(f"Dosyanın kopyası alınamadı: {hata}") from hata
+        return hedef
+
+    def satir_oku(self, sayfa: str, satir: int, sutun_sayisi: int) -> list:
+        aralik = self._sayfa(sayfa).Range(f"A{satir}:{get_column_letter(sutun_sayisi)}{satir}")
+        degerler = aralik.Value
+        hucreler = list(degerler[0]) if isinstance(degerler, tuple) else [degerler]
+        return hucreler + [None] * (sutun_sayisi - len(hucreler))
+
+    def yaz(self, sayfa: str, hucreler: dict[str, str]) -> None:
+        tablo = self._sayfa(sayfa)
+        for adres, deger in hucreler.items():
+            tablo.Range(adres).Value = deger
+        self._kaydet()
+
+    def boya(self, sayfa: str, adresler: list[str], renk: str | None) -> None:
+        tablo = self._sayfa(sayfa)
+        for adres in adresler:
+            ic = tablo.Range(adres).Interior
+            if renk:
+                kod = renk.lstrip("#")
+                # Excel renkleri ters sırada (mavi, yeşil, kırmızı) tutar.
+                ic.Color = int(kod[4:6] + kod[2:4] + kod[0:2], 16)
+            else:
+                ic.ColorIndex = _DOLGU_YOK
+        self._kaydet()
+
+    def kapat(self) -> None:
+        if self._kitap is not None:
+            try:
+                self._kitap.Close(SaveChanges=True)
+            except Exception:
+                pass
+            self._kitap = None
+        if self._excel is not None:
+            try:
+                self._excel.Quit()
+            except Exception:
+                pass
+            self._excel = None
+
+    def _ac(self):
+        if self._kitap is not None:
+            return self._kitap
+        self._excel = self._excel_olustur()
+        try:
+            self._excel.Visible = False
+            self._excel.DisplayAlerts = False  # kaydetme, bağlantı güncelleme vb. soruları sorma
+            self._kitap = self._excel.Workbooks.Open(self._adres, UpdateLinks=0, ReadOnly=False)
+            if self._kitap.ReadOnly:
+                raise ExcelHatasi(
+                    "Dosya salt okunur açıldı. Bu bilgisayarda Excel'de oturum açmış hesabın "
+                    "dosyayı düzenleme yetkisi olmalı (Excel > Dosya > Hesap)."
+                )
+        except ExcelHatasi:
+            self.kapat()
+            raise
+        except Exception as hata:
+            self.kapat()
+            raise ExcelHatasi(
+                f"Excel dosyayı açamadı: {hata}. Adresi ve Excel'de oturum açmış hesabı kontrol edin."
+            ) from hata
+        return self._kitap
+
+    def _sayfa(self, ad: str):
+        try:
+            return self._ac().Worksheets(ad)
+        except ExcelHatasi:
+            raise
+        except Exception as hata:
+            raise ExcelHatasi(f"'{ad}' sayfası bulunamadı.") from hata
+
+    def _kaydet(self) -> None:
+        try:
+            self._kitap.Save()
+        except Exception as hata:
+            raise ExcelHatasi(f"Excel dosyası kaydedilemedi: {hata}") from hata

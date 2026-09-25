@@ -14,7 +14,10 @@ gomme_modeli = 'bge-m3'
 # Excel'in SharePoint adresi: dosyayı SharePoint'te bulun, "..." > "Ayrıntılar" >
 # "Yol" yanındaki kopyala düğmesiyle alın. Boş bırakılırsa excel_yolu'ndaki dosyaya yazılır.
 # sharepoint_dosya_adresi = 'https://sirket.sharepoint.com/sites/SiteAdi/Shared Documents/Klasor/Oneri.xlsx'
-# IT'nin verdiği bilgiler:
+# Nasıl yazılacağı: 'graph' (IT'nin verdiği uygulama izniyle) ya da 'excel' (bu bilgisayardaki
+# Excel uygulamasıyla, Excel'de oturum açmış hesabın yetkisiyle; IT izni gerekmez).
+# yazma_yontemi = 'graph'
+# 'graph' yönteminde IT'nin verdiği bilgiler:
 # graph_kiraci = '00000000-0000-0000-0000-000000000000'
 # graph_uygulama = '00000000-0000-0000-0000-000000000000'
 # Gizli anahtar buraya değil, ONERI_GRAPH_SIRRI ortam değişkenine yazılmalı (README'ye bakın).
