@@ -33,12 +33,14 @@ def karar_semasi() -> dict:
     }
 
 
-def metin_semasi(onay: str) -> dict:
-    """2. adım. Karar belli; model yalnızca o karara uyan gerekçelerden seçebilir."""
+def metin_semasi(onay: str, gerekce: str | None = None) -> dict:
+    """2. adım. Karar belli. Gerekçe de belliyse model yalnızca onu kullanabilir (metin karar
+    gerekçesinden başka bir gerekçeye kaymasın); değilse o karara uyan gerekçelerden seçer."""
+    secenekler = [gerekce] if gerekce else [g for g, o in GEREKCELER.items() if o == onay]
     return {
         "type": "object",
         "properties": {
-            "gerekce": {"type": "string", "enum": [g for g, o in GEREKCELER.items() if o == onay]},
+            "gerekce": {"type": "string", "enum": secenekler},
             "degerlendirme": {"type": "string"},
         },
         "required": ["gerekce", "degerlendirme"],
@@ -191,13 +193,19 @@ def karar_mesaji(yeni: Oneri, ornekler: list[Ornek]) -> str:
     )
 
 
-def metin_mesaji(yeni: Oneri, ornekler: list[Ornek], onay: str) -> str:
-    return _mesaj(
-        yeni,
-        ornekler,
-        f'METİN adımı: bu önerinin kararı "{onay}" olarak belirlendi. Bu karara uyan gerekçeyi seç ve '
-        'değerlendirme metnini JSON olarak ver: {"gerekce": "...", "degerlendirme": "..."}',
-    )
+def metin_mesaji(yeni: Oneri, ornekler: list[Ornek], onay: str, gerekce: str | None = None) -> str:
+    if gerekce:
+        istek = (
+            f'METİN adımı: bu önerinin kararı "{onay}", gerekçesi "{gerekce}" olarak belirlendi. '
+            f'Değerlendirmeyi bu gerekçeye göre, kurallardaki "{gerekce}" açıklamasına uygun yaz ve '
+            'JSON olarak ver: {"gerekce": "' + gerekce + '", "degerlendirme": "..."}'
+        )
+    else:
+        istek = (
+            f'METİN adımı: bu önerinin kararı "{onay}" olarak belirlendi. Bu karara uyan gerekçeyi seç ve '
+            'değerlendirme metnini JSON olarak ver: {"gerekce": "...", "degerlendirme": "..."}'
+        )
+    return _mesaj(yeni, ornekler, istek)
 
 
 def _mesaj(yeni: Oneri, ornekler: list[Ornek], istek: str) -> str:

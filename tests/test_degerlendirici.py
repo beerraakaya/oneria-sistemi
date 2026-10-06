@@ -46,8 +46,9 @@ def test_once_karar_sonra_karar_belliyken_metin_istenir(asistan, sahte_ollama):
     assert "KARAR adımı" in karar["messages"][1]["content"]
 
     # Metin adımında karar belli; yalnızca o karara uyan gerekçeler seçilebilir.
-    assert 'kararı "Öneri Değil" olarak belirlendi' in metin["messages"][1]["content"]
-    assert "Geçerli öneri" not in metin["format"]["properties"]["gerekce"]["enum"]
+    # Metin adımında karar ve gerekçe belli; model gerekçeyi değiştiremez.
+    assert 'kararı "Öneri Değil", gerekçesi "Rutin iş" olarak belirlendi' in metin["messages"][1]["content"]
+    assert metin["format"]["properties"]["gerekce"]["enum"] == ["Rutin iş"]
 
     assert (taslak.onay_durumu, taslak.durum, taslak.gerekce) == ("Öneri Değil", "Red Edildi", "Rutin iş")
     assert taslak.degerlendirme == "Aşınan bantların yenilenmesi rutin bakım işidir."
@@ -263,7 +264,7 @@ def test_dogrulanmayan_red_gerekcesinde_karar_oneri_olur(asistan, sahte_ollama):
     taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
 
     assert "kişisel yararına" in sahte_ollama.sohbetler()[1]["messages"][1]["content"]
-    assert 'kararı "Öneri" olarak belirlendi' in sahte_ollama.sohbetler()[2]["messages"][1]["content"]
+    assert 'kararı "Öneri", gerekçesi "Geçerli öneri"' in sahte_ollama.sohbetler()[2]["messages"][1]["content"]
     assert (taslak.onay_durumu, taslak.durum) == ("Öneri", "Devam Ediyor")
     assert taslak.gerekce == (
         'Geçerli öneri (kontrol: "Politika/sosyal hak talebi" doğrulanmadı '
@@ -304,7 +305,8 @@ def test_somut_cozum_varsa_rutin_is_kontrolune_gecilir(asistan, sahte_ollama):
     _, somut, rutin, metin = sahte_ollama.sohbetler()
     assert "ne yapılması istendiği" in somut["messages"][1]["content"]
     assert "en çok hangisine uyuyor" in rutin["messages"][1]["content"]
-    assert 'kararı "Öneri Değil" olarak belirlendi' in metin["messages"][1]["content"]
+    assert 'gerekçesi "Rutin iş" olarak belirlendi' in metin["messages"][1]["content"]
+    assert metin["format"]["properties"]["gerekce"]["enum"] == ["Rutin iş"]
     assert taslak.onay_durumu == "Öneri Değil"
     assert taslak.gerekce == (
         'Rutin iş (kontrol: "Somut çözüm yok" doğrulanmadı (A: Bant yenilenmesi isteniyor.);'
@@ -386,4 +388,5 @@ def test_bos_onerilen_durumda_modele_sorulmadan_somut_cozum_yok(asistan, sahte_o
     taslak = asistan.degerlendirici.degerlendir(oneri)
     [metin] = sahte_ollama.sohbetler()
     assert "METİN adımı" in metin["messages"][1]["content"]
+    assert metin["format"]["properties"]["gerekce"]["enum"] == ["Somut çözüm yok"]
     assert (taslak.onay_durumu, taslak.gerekce) == ("Öneri Değil", "Somut çözüm yok (önerilen durum boş)")

@@ -32,6 +32,11 @@ Durum yazılmaz; sistem "Öneri" için "Devam Ediyor", "Öneri Değil" için "Re
 - **2. cümle:**
   - "Öneri" ise ilerleyebilmesi için neyin ölçülmesi, hesaplanması, denenmesi ya da kimin onayının gerektiğini söyler.
   - "Öneri Değil" ise neden öneri sayılmadığını ve öneriye dönüşmesi için ne gerektiğini ya da konuyu hangi birimin doğrudan ele alması gerektiğini söyler.
+- "Öneri Değil" kararında gerekçe, ekibin o gerekçe için kullandığı anlatımla yazılır:
+  - **Somut çözüm yok:** Önerilen çözüm belirtilmediği ya da kayıt talep/şikâyet düzeyinde kaldığı için problem bildirimi niteliğindedir. Tekrar sunulması için çözüm adımları, uygulanabilirlik ve ölçülebilir kazanım yazılmalıdır.
+  - **Rutin iş:** Konu rutin temizlik, bakım, kalibrasyon, standart atık ayrıştırma ve toplama ya da standart iş kapsamındadır; ilgili birim tarafından doğrudan ele alınmalıdır. Öneriye dönüşmesi için mevcut uygulamadan farklı, ölçülebilir kazanım sağlayan yeni bir malzeme, tasarım ya da yöntem gerekir.
+  - **Politika/sosyal hak talebi:** Çalışan yan hakkı, sosyal imkân ya da şirket politikası talebidir; süreç, kalite, güvenlik veya verimlilik açısından yeni bir iyileştirme yöntemi içermez. İK tarafından çalışan bağlılığı kapsamında ayrıca değerlendirilebilir.
+  - **Yasal/İSG yükümlülüğü:** Temel İSG/mevzuat yükümlülüğü kapsamındadır; öneri sisteminde bekletilmeden İSG ve ilgili teknik birim (Bakım, HSE) tarafından doğrudan aksiyona dönüştürülmelidir.
 - Kurumsal, yapıcı ve saygılı bir dil kullanılır. Kişi adı ve "ben" dili kullanılmaz.
 - Kişileri tanımlarken güncel ve saygılı ifadeler kullanılır: "özürlü" asla yazılmaz, yerine "engelli" yazılır (örn. "engelli çalışanlar", "engelli erişimi").
 

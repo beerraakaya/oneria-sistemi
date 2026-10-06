@@ -56,9 +56,11 @@ class Degerlendirici:
         onerilen_sey = ""
         kontrol_notu = ""
         onay = sabit_onay
+        gerekce = None  # karma yöntemde karar dışarıdan gelir; gerekçeyi metin adımı seçer
         if onay is None and len(oneri.onerilen_durum.strip()) < KONTROL_EN_KISA_ONERILEN:
             # Önerilen durum boş ya da birkaç harf: ekip kuralı gereği somut çözüm yok.
-            onay = GEREKCELER["Somut çözüm yok"]
+            gerekce = "Somut çözüm yok"
+            onay = GEREKCELER[gerekce]
             kontrol_notu = " (önerilen durum boş)"
         if onay is None:
             karar = self._sor(
@@ -74,9 +76,10 @@ class Degerlendirici:
 
         mesajlar = [
             {"role": "system", "content": self._sistem},
-            {"role": "user", "content": metin_mesaji(oneri, ornekler, onay)},
+            {"role": "user", "content": metin_mesaji(oneri, ornekler, onay, gerekce)},
         ]
-        sema = metin_semasi(onay)
+        # Gerekçe belliyse metin de o gerekçeyle yazılır; model başka gerekçeye kaymaz.
+        sema = metin_semasi(onay, gerekce)
         cevap = self._sor(mesajlar, sema)
         if yabanci_yazi(cevap["degerlendirme"]):
             # Qwen bazen metnin ortasında Çinceye geçiyor. Bozuk cevap sohbete eklenmeden,
