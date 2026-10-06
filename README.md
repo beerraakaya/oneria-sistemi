@@ -88,7 +88,7 @@ Ekran kartı olmayan bir bilgisayarda her öneri birkaç dakika sürebilir. Test
 
 Güvenlik kuralları:
 
-- Yalnızca bu üç hücreye yazar. Satır eklemez, silmez, sıralamaz; Tuzla satırlarına ve dolu hücrelere dokunmaz.
+- Yalnızca bu üç hücreye yazar. Satır eklemez, silmez, sıralamaz; ayarlarda olmayan fabrikaların satırlarına ve dolu hücrelere dokunmaz.
 - Yazmadan hemen önce satırı yeniden okur. Öneri değişmişse ya da o arada biri bir şey yazmışsa o satırı atlar.
 - Ekibin henüz kontrol etmediği taslakları yapay zekâya örnek göstermez; yapay zekâ kendi yazdıklarından değil, ekibin yazdıklarından ve onayladıklarından öğrenir.
 - Bilgisayar kapalıyken gelen öneriler kaybolmaz. Öneriler Excel'e Jotform üzerinden gelmeye devam eder; program açıldığında boş olan bütün satırları doldurur.
