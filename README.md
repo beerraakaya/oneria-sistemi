@@ -60,13 +60,13 @@ Ekran kartı olmayan bir bilgisayarda her öneri birkaç dakika sürebilir. Test
 
 ## Nasıl çalışır?
 
-1. Excel'den yalnızca ayarlardaki fabrikaların (varsayılan: **Denizli ve Tuzla**) satırları okunur; diğer satırlara dokunulmaz. İki fabrikanın önerilerini aynı ekip, aynı kurallarla değerlendirir; örnek havuzunda iki fabrikanın ekip değerlendirmeleri birlikte bulunur. Kişi adı sütunları hiç okunmaz.
+1. Excel'den yalnızca ayarlardaki fabrikaların (varsayılan: **Denizli ve Tuzla**) satırları okunur; diğer satırlara dokunulmaz. İki fabrikanın önerilerini aynı ekip, aynı kurallarla değerlendirir. Tuzla'nın eski kararları farklı bir anlayışla verildiği için örnek alınmaz; Tuzla değerlendirmeleri `ornek_baslangici` tarihinden (2026-10-06) itibaren örnek havuzuna girer. Kişi adı sütunları hiç okunmaz.
 2. Kararı ve değerlendirmesi olan öneriler **kurumsal hafızayı** oluşturur. "deneme" gibi 40 karakterden kısa değerlendirmeler test kaydı sayılıp dışarıda bırakılır.
 3. Hafızadaki metinler ikiye ayrılır: ilk cümlesi en az 3 kayıtta aynen geçenler **eski kalıp** metinlerdir, diğerleri **yeni tarzdır**.
 4. Yeni bir öneri geldiğinde `bge-m3` ile anlamca en benzer eski öneriler bulunur. Modele yalnızca **ekibin kendi yazdığı** (yeni tarz) en benzer 8 değerlendirme, kararıyla birlikte gösterilir; böylece model ekibin benzer önerilerde neye bakıp ne dediğini görür.
 5. Değerlendirme adım adım yapılır:
    - **Karar:** model önerilen şeyi özetler ve `kurallar.md`'deki gerekçelerden birini seçer ("Geçerli öneri" ya da bir ret gerekçesi).
-   - **Kontrol:** model bir ret gerekçesi seçtiyse, örnek göstermeden seçmeli bir soruyla doğrulanır. "Somut çözüm yok" için "Önerilen durumda ne yapılması istendiği yazıyor mu?"; yazıyorsa "Rutin iş" kontrolüne geçilir. "Rutin iş" için "Bozulanı eski hâline getirmek mi, yeni ekipman almak mı, yöntemi değiştirmek mi?". "Politika/sosyal hak" için "Asıl faydası çalışana mı, işe mi?". Doğrulanmazsa karar "Öneri" olur. `ayarlar.toml` içinde `red_kontrolu = false` yazılarak kapatılabilir.
+   - **Kontrol:** model bir ret gerekçesi seçtiyse, örnek göstermeden seçmeli bir soruyla doğrulanır; her seçenek bir gerekçeye karşılık gelir. "Somut çözüm yok" için "Önerilen durumda ne yapılması istendiği yazıyor mu?" sorulur; yazıyorsa "Rutin iş" kontrolüne geçilir. "Rutin iş" için bozulanı eski hâline getirmek, atık toplama noktası koymak, eksik koruyucuyu tamamlamak (İSG), yeni ekipman almak, yöntemi değiştirmek gibi seçenekler sunulur. Yeni ekipman ya da yöntem değişikliği seçilirse karar "Öneri" olur. Önerilen durumu boş olan önerilere modele sorulmadan "Somut çözüm yok" denir. `ayarlar.toml` içinde `red_kontrolu = false` yazılarak kapatılabilir.
    - **Metin:** karar belliyken, ekip gibi önce faydayı görüp iki cümlelik değerlendirmeyi yazar.
 6. Durum karara göre yazılır: "Öneri" için "Devam Ediyor", "Öneri Değil" için "Red Edildi". Tamamlandı ve Uygulanamaz'ı ekip sonradan girer.
 

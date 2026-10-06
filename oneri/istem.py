@@ -48,48 +48,75 @@ def metin_semasi(onay: str) -> dict:
 # KARAR adımında model ret gerekçelerini, önerilen şey mevcut yöntemi iyileştirse bile sık
 # seçiyor. Bu gerekçeler seçilince, örnek ve kural göstermeden seçmeli bir soru sorulur.
 # Model uzun Evet/Hayır sorularında "Evet" demeye yatkın; seçenekler arasından seçmek daha
-# isabetli. Cevap gerekçeyi doğrulamazsa karar "Öneri" olur ya da sıradaki kontrole geçilir.
+# isabetli. Her seçenek bir gerekçeye karşılık gelir; seçilen gerekçenin de kontrolü varsa
+# (örn. "Somut çözüm yok" -> "Rutin iş") o kontrol de sorulur.
 @dataclass(frozen=True)
 class Kontrol:
     soru: str
-    secenekler: dict[str, str]  # harf -> açıklama
-    dogrulayan: str  # gerekçeyi doğrulayan seçenek
-    # Doğrulanmazsa sorulacak başka bir gerekçenin kontrolü; yoksa karar "Öneri" olur.
-    sonraki: str | None = None
+    # harf -> (açıklama, karşılık gelen gerekçe)
+    secenekler: dict[str, tuple[str, str]]
 
+
+_GECERLI = "Geçerli öneri"
+_ISG = "Yasal/İSG yükümlülüğü"
 
 KONTROLLER = {
     "Somut çözüm yok": Kontrol(
         soru="Önerilen durumda ne yapılması istendiği yazıyor mu?",
         secenekler={
-            "A": "Evet: yapılması istenen somut bir iş var (alınacak, yapılacak, değiştirilecek, "
-            "eklenecek ya da kaldırılacak bir şey)",
-            "B": "Hayır: önerilen durum boş, yalnızca sorunu tekrar ediyor ya da ne yapılacağı belli değil",
+            "A": (
+                "Evet: yapılması istenen somut bir iş var (alınacak, yapılacak, değiştirilecek, "
+                "eklenecek ya da kaldırılacak bir şey)",
+                "Rutin iş",
+            ),
+            "B": (
+                "Hayır: önerilen durum boş, yalnızca sorunu tekrar ediyor ya da ne yapılacağı belli değil",
+                "Somut çözüm yok",
+            ),
         },
-        dogrulayan="B",
-        sonraki="Rutin iş",
     ),
     "Rutin iş": Kontrol(
         soru="Önerilen şey en çok hangisine uyuyor?",
         secenekler={
-            "A": "Bozulan, aşınan ya da kirlenen bir şeyi eski hâline getirmek: tamir, temizlik, "
-            "aynısıyla değiştirme, periyodik bakım, kontrol ya da kalibrasyon",
-            "B": "Yeni bir ekipman, aparat, alet, ölçüm aracı ya da malzeme almak veya yapmak",
-            "C": "Üretim yöntemini, makine ayarını ya da süreci değiştirmek; makineye ya da "
-            "sisteme yeni bir özellik eklemek",
-            "D": "Hiçbiri",
+            "A": (
+                "Bozulan, aşınan, yamulan ya da kirlenen bir şeyi eski hâline getirmek: tamir, "
+                "temizlik, aynısıyla değiştirme ya da yenileme, periyodik bakım, kontrol ya da kalibrasyon",
+                "Rutin iş",
+            ),
+            "B": ("Atık toplama kutusu ya da ayrıştırma noktası koymak", "Rutin iş"),
+            "C": (
+                "Eksik bir makine koruyucusunu, kapağını ya da zorunlu bir güvenlik önlemini tamamlamak",
+                _ISG,
+            ),
+            "D": (
+                "Daha önce olmayan yeni bir ekipman, aparat, alet ya da malzeme almak veya yapmak "
+                "(bozulanın aynısını yenilemek değil)",
+                _GECERLI,
+            ),
+            "E": (
+                "Üretim yöntemini, makine ayarını ya da süreci değiştirmek; makineye ya da sisteme "
+                "yeni bir özellik eklemek",
+                _GECERLI,
+            ),
+            "F": ("Hiçbiri", _GECERLI),
         },
-        dogrulayan="A",
     ),
     "Politika/sosyal hak talebi": Kontrol(
         soru="Önerinin asıl faydası kime ya da neye?",
         secenekler={
-            "A": "Çalışanların kişisel yararına: hak, imkân, ikram, hediye, ödül, izin, servis "
-            "ya da sosyal etkinlik",
-            "B": "İşe, sürece, güvenliğe, kaliteye, maliyete ya da çevreye",
-            "C": "Hiçbiri",
+            "A": (
+                "Çalışanların kişisel yararına: hak, imkân, ikram, hediye, ödül, izin, servis "
+                "ya da sosyal etkinlik",
+                "Politika/sosyal hak talebi",
+            ),
+            "B": (
+                "Mevzuat ya da temel güvenlik gereği zaten bulunması zorunlu bir şeyin eksiği ya da "
+                "yeri (yangın söndürücü, makine koruyucusu, acil durum ekipmanı)",
+                _ISG,
+            ),
+            "C": ("İşe, sürece, kaliteye, maliyete ya da çevreye fayda", _GECERLI),
+            "D": ("Hiçbiri", _GECERLI),
         },
-        dogrulayan="A",
     ),
 }
 
@@ -125,7 +152,7 @@ def kontrol_mesaji(yeni: Oneri, gerekce: str) -> str:
             _oneri_blogu(yeni),
             "",
             f"SORU: {kontrol.soru}",
-            *(f"{harf}) {aciklama}" for harf, aciklama in kontrol.secenekler.items()),
+            *(f"{harf}) {aciklama}" for harf, (aciklama, _) in kontrol.secenekler.items()),
             "",
             'Cevabı JSON olarak ver: {"aciklama": "...", "cevap": "'
             + '" ya da "'.join(kontrol.secenekler)

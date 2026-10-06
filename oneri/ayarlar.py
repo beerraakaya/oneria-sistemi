@@ -1,7 +1,8 @@
 """Program ayarları: koddaki varsayılanlar ve isteğe bağlı ayarlar.toml dosyası."""
 
 import tomllib
-from dataclasses import dataclass, fields, replace
+from dataclasses import dataclass, field, fields, replace
+from datetime import date
 from pathlib import Path
 
 
@@ -12,6 +13,10 @@ class Ayarlar:
     # Yalnızca bu fabrikaların satırları okunur ve doldurulur; listede olmayanlara dokunulmaz.
     # İki fabrikanın önerilerini aynı ekip, aynı kurallarla değerlendirir.
     fabrikalar: tuple[str, ...] = ("Denizli", "Tuzla")
+    # Bir fabrikanın değerlendirmeleri ancak bu tarihten itibaren örnek alınır. Tuzla'nın
+    # eski kararları başka bir anlayışla verilmiş (önerilerin çoğu kabul edilmiş); Tuzla'yı
+    # artık Denizli ekibi aynı kurallarla değerlendirdiği için eski kararlar örnek alınmaz.
+    ornek_baslangici: dict[str, date] = field(default_factory=lambda: {"Tuzla": date(2026, 10, 6)})
     kurallar_yolu: Path = Path("kurallar.md")
     # Hafıza dosyası ve raporlar buraya yazılır; git'e gönderilmez.
     veri_klasoru: Path = Path("veri")

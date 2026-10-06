@@ -15,7 +15,7 @@ from .kaynak import GraphHatasi
 from .kor_test import kor_test_calistir, ozetle, rapor_yaz
 from .ollama import Ollama, OllamaHatasi, model_yuklu_mu
 from .taslaklar import DUZELTILDI, ONAYLANDI, SILINDI, TaslakDeposu
-from .uygulama import asistani_kur, fabrika_onerileri, kaynagi_hazirla
+from .uygulama import asistani_kur, fabrika_onerileri, kaynagi_hazirla, ornek_olabilir
 
 
 def kontrol(ayarlar: Ayarlar, _args) -> int:
@@ -27,7 +27,7 @@ def kontrol(ayarlar: Ayarlar, _args) -> int:
         print(f"SharePoint ({yol}): bağlandı, dosya okundu ({kaynak.ad})")
     print(f"Excel: {ayarlar.excel_yolu} ({ayarlar.sayfa_adi} sayfası)")
     oneriler = fabrika_onerileri(ayarlar)
-    ornekler = [o for o in oneriler if ornek_alinabilir_mi(o, ayarlar.en_kisa_degerlendirme)]
+    ornekler = [o for o in oneriler if ornek_olabilir(o, ayarlar)]
     ozgun = ozgun_satirlar(ornekler, ayarlar.kalip_tekrar_esigi)
     bekleyen = [o.satir for o in oneriler if o.bekliyor]
     for fabrika in ayarlar.fabrikalar:
@@ -73,8 +73,12 @@ def kor_test(ayarlar: Ayarlar, args) -> int:
     kendi, kontrolsuz = _yapay_zeka_satirlari(ayarlar, oneriler)
     asistan = asistani_kur(ayarlar, Ollama(ayarlar.ollama_adresi), oneriler, kontrolsuz)
     try:
+        # Test adayları örnek havuzundan bağımsız seçilir: örneğin Tuzla'nın eski kararları
+        # örnek alınmasa da ekibin o önerilere verdiği kararla karşılaştırma yapılabilir.
+        adaylar = [o for o in oneriler if ornek_alinabilir_mi(o, ayarlar.en_kisa_degerlendirme)]
+        ozgun = ozgun_satirlar(adaylar, ayarlar.kalip_tekrar_esigi)
         test = sorted(
-            (o.oneri for o in asistan.hafiza.ornekler if o.ozgun and o.oneri.satir not in kendi),
+            (o for o in adaylar if o.satir in ozgun and o.satir not in kendi),
             key=lambda o: o.satir,
         )
         if args.fabrika:

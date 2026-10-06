@@ -56,6 +56,10 @@ class Degerlendirici:
         onerilen_sey = ""
         kontrol_notu = ""
         onay = sabit_onay
+        if onay is None and len(oneri.onerilen_durum.strip()) < KONTROL_EN_KISA_ONERILEN:
+            # Önerilen durum boş ya da birkaç harf: ekip kuralı gereği somut çözüm yok.
+            onay = GEREKCELER["Somut çözüm yok"]
+            kontrol_notu = " (önerilen durum boş)"
         if onay is None:
             karar = self._sor(
                 [
@@ -105,16 +109,15 @@ class Degerlendirici:
     def _dogrula(self, oneri: Oneri, gerekce: str) -> tuple[str, str]:
         """Ret gerekçesini seçmeli kontrol sorularıyla doğrular.
 
-        (son gerekçe, rapora eklenecek not) döndürür. Bir kontrol doğrulamazsa sıradaki
-        kontrole geçilir; sıradaki yoksa gerekçe "Geçerli öneri" olur.
+        (son gerekçe, rapora eklenecek not) döndürür. Seçilen seçenek başka bir gerekçeye
+        karşılık geliyorsa gerekçe değişir; o gerekçenin de kontrolü varsa o da sorulur.
         """
-        if not (
-            self._ayarlar.red_kontrolu
-            and len(oneri.onerilen_durum.strip()) >= KONTROL_EN_KISA_ONERILEN
-        ):
+        if not self._ayarlar.red_kontrolu:
             return gerekce, ""
         notlar = []
-        while gerekce in KONTROLLER:
+        sorulan = set()
+        while gerekce in KONTROLLER and gerekce not in sorulan:
+            sorulan.add(gerekce)
             cevap = self._sor(
                 [
                     {"role": "system", "content": KONTROL_SISTEMI},
@@ -122,10 +125,11 @@ class Degerlendirici:
                 ],
                 kontrol_semasi(gerekce),
             )
-            if cevap["cevap"] == KONTROLLER[gerekce].dogrulayan:
+            yeni = KONTROLLER[gerekce].secenekler[cevap["cevap"]][1]
+            if yeni == gerekce:
                 break
             notlar.append(f'"{gerekce}" doğrulanmadı ({cevap["cevap"]}: {cevap["aciklama"]})')
-            gerekce = KONTROLLER[gerekce].sonraki or "Geçerli öneri"
+            gerekce = yeni
         if not notlar:
             return gerekce, ""
         sonuc = "karar Öneri yapıldı" if GEREKCELER[gerekce] == ONERI else f'gerekçe "{gerekce}" oldu'

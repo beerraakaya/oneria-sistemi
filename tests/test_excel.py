@@ -71,3 +71,20 @@ def test_fabrika_ayari(tmp_path):
     assert ayarlari_yukle(yol).fabrikalar == ("Tuzla",)
     yol.write_text("fabrika = 'Denizli'\n", encoding="utf-8")  # eski ayar adı
     assert ayarlari_yukle(yol).fabrikalar == ("Denizli",)
+
+
+def test_eski_tuzla_degerlendirmeleri_ornek_alinmaz():
+    from dataclasses import replace
+    from datetime import date
+
+    from oneri.ayarlar import Ayarlar
+    from oneri.excel import Oneri
+    from oneri.uygulama import ornek_olabilir
+
+    metin = "Yeterince uzun, ekibin kendi yazdığı bir değerlendirme metni örneği."
+    oneri = Oneri(1, date(2026, 5, 1), "Tuzla", "", "Konu", "Mevcut", "Önerilen", metin, "Öneri", "")
+    ayarlar = Ayarlar()
+    assert not ornek_olabilir(oneri, ayarlar)
+    assert ornek_olabilir(replace(oneri, tarih=date(2026, 10, 6)), ayarlar)
+    assert ornek_olabilir(replace(oneri, fabrika="Denizli"), ayarlar)
+    assert ornek_olabilir(oneri, replace(ayarlar, ornek_baslangici={}))

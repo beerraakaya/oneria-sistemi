@@ -245,19 +245,19 @@ def test_red_gerekcesi_kontrol_sorusuyla_dogrulanir(asistan, sahte_ollama):
     taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
 
     kontrol = sahte_ollama.sohbetler()[1]
-    assert kontrol["format"]["properties"]["cevap"]["enum"] == ["A", "B", "C", "D"]
+    assert kontrol["format"]["properties"]["cevap"]["enum"] == ["A", "B", "C", "D", "E", "F"]
     # Kontrol sorusunda örnekler ve kurallar yok; yalnızca öneri ve soru.
     assert "EKİBİN BENZER" not in kontrol["messages"][1]["content"]
     assert "KURALLAR" not in kontrol["messages"][0]["content"]
     assert "Basamaklara yeni kaymaz bant" in kontrol["messages"][1]["content"]
-    assert "A) Bozulan, aşınan ya da kirlenen bir şeyi eski hâline getirmek" in kontrol["messages"][1]["content"]
+    assert "A) Bozulan, aşınan, yamulan ya da kirlenen bir şeyi eski hâline getirmek" in kontrol["messages"][1]["content"]
     assert (taslak.onay_durumu, taslak.gerekce) == ("Öneri Değil", "Rutin iş")
 
 
 def test_dogrulanmayan_red_gerekcesinde_karar_oneri_olur(asistan, sahte_ollama):
     sahte_ollama.sohbet_cevabi = [
         _karar("Politika/sosyal hak talebi"),
-        _kontrol("B", "Asıl fayda iş güvenliğine."),
+        _kontrol("C", "Asıl fayda işe."),
         _metin("Geçerli öneri", "Kayma riskini azaltabilir. Maliyet belirlenmelidir."),
     ]
     taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
@@ -267,7 +267,7 @@ def test_dogrulanmayan_red_gerekcesinde_karar_oneri_olur(asistan, sahte_ollama):
     assert (taslak.onay_durumu, taslak.durum) == ("Öneri", "Devam Ediyor")
     assert taslak.gerekce == (
         'Geçerli öneri (kontrol: "Politika/sosyal hak talebi" doğrulanmadı '
-        "(B: Asıl fayda iş güvenliğine.); karar Öneri yapıldı)"
+        "(C: Asıl fayda işe.); karar Öneri yapıldı)"
     )
 
 
@@ -316,7 +316,7 @@ def test_somut_cozum_var_ve_rutin_degilse_karar_oneri_olur(asistan, sahte_ollama
     sahte_ollama.sohbet_cevabi = [
         _karar("Somut çözüm yok"),
         _kontrol("A", "Yeni bant isteniyor."),
-        _kontrol("B", "Yeni malzeme alınıyor."),
+        _kontrol("D", "Yeni malzeme alınıyor."),
         _metin("Geçerli öneri", "Kayma riskini azaltabilir. Maliyet belirlenmelidir."),
     ]
     taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
@@ -363,3 +363,27 @@ def test_cince_surerse_taslak_reddedilir(asistan, sahte_ollama):
     sahte_ollama.sohbet_cevabi = [_karar("Geçerli öneri"), _metin("Geçerli öneri", "Seti接待时.")]
     with pytest.raises(GecersizCevap, match="Türkçe olmayan"):
         asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
+
+
+def test_kontrolde_guvenlik_secenegi_isg_gerekcesine_gecer(asistan, sahte_ollama):
+    # Eksik koruyucu gibi zorunlu güvenlik işleri öneri değil, İSG'nin doğrudan aksiyonudur.
+    sahte_ollama.sohbet_cevabi = [
+        _karar("Rutin iş"),
+        _kontrol("C", "Eksik koruyucu tamamlanıyor."),
+        _metin("Yasal/İSG yükümlülüğü", "Zorunlu güvenlik önlemidir. İSG doğrudan aksiyon almalıdır."),
+    ]
+    taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
+    assert len(sahte_ollama.sohbetler()) == 3  # İSG gerekçesinin ayrıca kontrolü yok
+    assert taslak.onay_durumu == "Öneri Değil"
+    assert taslak.gerekce.startswith("Yasal/İSG yükümlülüğü (kontrol: ")
+
+
+def test_bos_onerilen_durumda_modele_sorulmadan_somut_cozum_yok(asistan, sahte_ollama):
+    from dataclasses import replace
+
+    oneri = replace(_oneri(asistan, 9), onerilen_durum=" - ")
+    sahte_ollama.sohbet_cevabi = _metin("Somut çözüm yok", "Çözüm önerisi yazılmalıdır.")
+    taslak = asistan.degerlendirici.degerlendir(oneri)
+    [metin] = sahte_ollama.sohbetler()
+    assert "METİN adımı" in metin["messages"][1]["content"]
+    assert (taslak.onay_durumu, taslak.gerekce) == ("Öneri Değil", "Somut çözüm yok (önerilen durum boş)")

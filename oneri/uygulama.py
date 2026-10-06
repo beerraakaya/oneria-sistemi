@@ -53,6 +53,16 @@ def _graph_kaynagi(ayarlar: Ayarlar) -> SharePointExcel:
     )
 
 
+def ornek_olabilir(oneri: Oneri, ayarlar: Ayarlar) -> bool:
+    """Yapay zekâya örnek gösterilebilecek bir ekip değerlendirmesi mi?"""
+    if not ornek_alinabilir_mi(oneri, ayarlar.en_kisa_degerlendirme):
+        return False
+    baslangic = {f.casefold(): t for f, t in ayarlar.ornek_baslangici.items()}.get(
+        oneri.fabrika.casefold()
+    )
+    return baslangic is None or (oneri.tarih is not None and oneri.tarih >= baslangic)
+
+
 def fabrika_onerileri(ayarlar: Ayarlar) -> list[Oneri]:
     """Excel'deki önerilerden yalnızca ayarlardaki fabrikalara ait olanlar."""
     fabrikalar = {f.casefold() for f in ayarlar.fabrikalar}
@@ -94,8 +104,7 @@ def asistani_kur(
             [
                 o
                 for o in oneriler
-                if ornek_alinabilir_mi(o, ayarlar.en_kisa_degerlendirme)
-                and o.satir not in haric_satirlar
+                if ornek_olabilir(o, ayarlar) and o.satir not in haric_satirlar
             ],
             onbellek,
             ayarlar.kalip_tekrar_esigi,
