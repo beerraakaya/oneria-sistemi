@@ -13,10 +13,10 @@ class Ayarlar:
     # Yalnızca bu fabrikaların satırları okunur ve doldurulur; listede olmayanlara dokunulmaz.
     # İki fabrikanın önerilerini aynı ekip, aynı kurallarla değerlendirir.
     fabrikalar: tuple[str, ...] = ("Denizli", "Tuzla")
-    # Bir fabrikanın değerlendirmeleri ancak bu tarihten itibaren örnek alınır. Tuzla'nın
-    # eski kararları başka bir anlayışla verilmiş (önerilerin çoğu kabul edilmiş); Tuzla'yı
-    # artık Denizli ekibi aynı kurallarla değerlendirdiği için eski kararlar örnek alınmaz.
-    ornek_baslangici: dict[str, date] = field(default_factory=lambda: {"Tuzla": date(2026, 10, 6)})
+    # Bir fabrikanın değerlendirmeleri ancak bu tarihten itibaren örnek alınır ve kör testte
+    # kullanılır. Denizli'de ekibin yeni tarzı 2026'da başladı; Tuzla'nın daha eski kararları
+    # (2024'te önerilerin tamamı kabul edilmiş) bugünkü anlayışı yansıtmadığı için alınmaz.
+    ornek_baslangici: dict[str, date] = field(default_factory=lambda: {"Tuzla": date(2026, 1, 1)})
     kurallar_yolu: Path = Path("kurallar.md")
     # Hafıza dosyası ve raporlar buraya yazılır; git'e gönderilmez.
     veri_klasoru: Path = Path("veri")

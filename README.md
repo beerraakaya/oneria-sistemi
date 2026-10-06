@@ -60,7 +60,7 @@ Ekran kartı olmayan bir bilgisayarda her öneri birkaç dakika sürebilir. Test
 
 ## Nasıl çalışır?
 
-1. Excel'den yalnızca ayarlardaki fabrikaların (varsayılan: **Denizli ve Tuzla**) satırları okunur; diğer satırlara dokunulmaz. İki fabrikanın önerilerini aynı ekip, aynı kurallarla değerlendirir. Tuzla'nın eski kararları farklı bir anlayışla verildiği için örnek alınmaz; Tuzla değerlendirmeleri `ornek_baslangici` tarihinden (2026-10-06) itibaren örnek havuzuna girer. Kişi adı sütunları hiç okunmaz.
+1. Excel'den yalnızca ayarlardaki fabrikaların (varsayılan: **Denizli ve Tuzla**) satırları okunur; diğer satırlara dokunulmaz. İki fabrikanın önerilerini aynı ekip, aynı kurallarla değerlendirir. Denizli'de olduğu gibi Tuzla'da da yalnızca ekibin bugünkü anlayışıyla yazdığı değerlendirmeler örnek alınır: `ornek_baslangici` tarihinden (2026-01-01) önceki Tuzla kararları örnek alınmaz ve kör testte kullanılmaz. Kişi adı sütunları hiç okunmaz.
 2. Kararı ve değerlendirmesi olan öneriler **kurumsal hafızayı** oluşturur. "deneme" gibi 40 karakterden kısa değerlendirmeler test kaydı sayılıp dışarıda bırakılır.
 3. Hafızadaki metinler ikiye ayrılır: ilk cümlesi en az 3 kayıtta aynen geçenler **eski kalıp** metinlerdir, diğerleri **yeni tarzdır**.
 4. Yeni bir öneri geldiğinde `bge-m3` ile anlamca en benzer eski öneriler bulunur. Modele yalnızca **ekibin kendi yazdığı** (yeni tarz) en benzer 8 değerlendirme, kararıyla birlikte gösterilir; böylece model ekibin benzer önerilerde neye bakıp ne dediğini görür.

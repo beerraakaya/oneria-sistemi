@@ -82,9 +82,9 @@ def test_eski_tuzla_degerlendirmeleri_ornek_alinmaz():
     from oneri.uygulama import ornek_olabilir
 
     metin = "Yeterince uzun, ekibin kendi yazdığı bir değerlendirme metni örneği."
-    oneri = Oneri(1, date(2026, 5, 1), "Tuzla", "", "Konu", "Mevcut", "Önerilen", metin, "Öneri", "")
+    oneri = Oneri(1, date(2025, 5, 1), "Tuzla", "", "Konu", "Mevcut", "Önerilen", metin, "Öneri", "")
     ayarlar = Ayarlar()
     assert not ornek_olabilir(oneri, ayarlar)
-    assert ornek_olabilir(replace(oneri, tarih=date(2026, 10, 6)), ayarlar)
+    assert ornek_olabilir(replace(oneri, tarih=date(2026, 1, 1)), ayarlar)
     assert ornek_olabilir(replace(oneri, fabrika="Denizli"), ayarlar)
     assert ornek_olabilir(oneri, replace(ayarlar, ornek_baslangici={}))

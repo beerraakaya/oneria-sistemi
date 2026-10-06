@@ -27,7 +27,7 @@ gomme_modeli = 'bge-m3'
 # fabrikalar = ['Denizli', 'Tuzla']
 # Bir fabrikanın değerlendirmeleri bu tarihten itibaren örnek alınır:
 # [ornek_baslangici]
-# Tuzla = 2026-10-06
+# Tuzla = 2026-01-01
 # kurallar_yolu = 'kurallar.md'
 # veri_klasoru = 'veri'
 # ollama_adresi = 'http://localhost:11434'

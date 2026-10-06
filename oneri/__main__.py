@@ -10,7 +10,7 @@ from .ayarlar import Ayarlar, ayarlari_yukle
 from .canli import CalismaSuruyor, calistir, tek_calisma
 from .degerlendirici import KarmaDegerlendirici, KomsuDegerlendirici
 from .excel import ExcelHatasi
-from .hafiza import ornek_alinabilir_mi, ozgun_satirlar
+from .hafiza import ozgun_satirlar
 from .kaynak import GraphHatasi
 from .kor_test import kor_test_calistir, ozetle, rapor_yaz
 from .ollama import Ollama, OllamaHatasi, model_yuklu_mu
@@ -73,12 +73,10 @@ def kor_test(ayarlar: Ayarlar, args) -> int:
     kendi, kontrolsuz = _yapay_zeka_satirlari(ayarlar, oneriler)
     asistan = asistani_kur(ayarlar, Ollama(ayarlar.ollama_adresi), oneriler, kontrolsuz)
     try:
-        # Test adayları örnek havuzundan bağımsız seçilir: örneğin Tuzla'nın eski kararları
-        # örnek alınmasa da ekibin o önerilere verdiği kararla karşılaştırma yapılabilir.
-        adaylar = [o for o in oneriler if ornek_alinabilir_mi(o, ayarlar.en_kisa_degerlendirme)]
-        ozgun = ozgun_satirlar(adaylar, ayarlar.kalip_tekrar_esigi)
+        # Ekibin bugünkü anlayışıyla yazdığı değerlendirmeler test edilir (örnek havuzuyla aynı:
+        # eski kalıp metinler ve ornek_baslangici'ndan önceki kararlar dahil değil).
         test = sorted(
-            (o for o in adaylar if o.satir in ozgun and o.satir not in kendi),
+            (o.oneri for o in asistan.hafiza.ornekler if o.ozgun and o.oneri.satir not in kendi),
             key=lambda o: o.satir,
         )
         if args.fabrika:
