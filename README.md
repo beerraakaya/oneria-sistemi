@@ -180,6 +180,12 @@ schtasks /Create /TN "Oneri Asistani" /TR "\"C:\oneri-sistemi\calistir.bat\"" /S
 
 **Bilgisayar açılınca bir kez:** `Win + R` > `shell:startup` yazın. Açılan klasöre `acilista_calistir.bat` dosyasının kısayolunu koyun. Bu dosya, Ollama ve Excel hazır olsun diye 2 dakika bekleyip programı çalıştırır.
 
+**Pencere açılmadan çalışsın istenirse:** Görev Zamanlayıcı'da `calistir.bat` yerine `calistir_gizli.vbs`, Başlangıç klasöründe `acilista_calistir.bat` yerine `acilista_gizli.vbs` kullanılır:
+
+```
+schtasks /Change /TN "Oneri Asistani" /TR "wscript.exe C:\oneria-sistemi\calistir_gizli.vbs"
+```
+
 Notlar:
 
 - Önceki çalışma bitmeden yenisi başlarsa yenisi kendiliğinden atlanır.
