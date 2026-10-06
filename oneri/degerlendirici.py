@@ -12,7 +12,7 @@ from .istem import (
     GEREKCELER,
     KONTROL_EN_KISA_ONERILEN,
     KONTROL_SISTEMI,
-    KONTROL_SORULARI,
+    KONTROLLER,
     karar_semasi,
     kontrol_mesaji,
     kontrol_semasi,
@@ -64,22 +64,9 @@ class Degerlendirici:
                 ],
                 karar_semasi(),
             )
-            onay = GEREKCELER[karar["gerekce"]]
             onerilen_sey = karar["onerilen_sey"]
-            if self._kontrol_edilmeli(oneri, karar["gerekce"]):
-                kontrol = self._sor(
-                    [
-                        {"role": "system", "content": KONTROL_SISTEMI},
-                        {"role": "user", "content": kontrol_mesaji(oneri, karar["gerekce"])},
-                    ],
-                    kontrol_semasi(),
-                )
-                if kontrol["cevap"] == "Hayır":
-                    onay = ONERI
-                    kontrol_notu = (
-                        f' (kontrol: "{karar["gerekce"]}" doğrulanmadı, karar Öneri yapıldı: '
-                        f'{kontrol["aciklama"]})'
-                    )
+            gerekce, kontrol_notu = self._dogrula(oneri, karar["gerekce"])
+            onay = GEREKCELER[gerekce]
 
         mesajlar = [
             {"role": "system", "content": self._sistem},
@@ -115,12 +102,34 @@ class Degerlendirici:
             gerekce += f" (uyarı: metin kararla çelişebilir: {', '.join(celiski)})"
         return Taslak(onay, BASLANGIC_DURUMU[onay], cevap["degerlendirme"], gerekce, onerilen_sey)
 
-    def _kontrol_edilmeli(self, oneri: Oneri, gerekce: str) -> bool:
-        return (
+    def _dogrula(self, oneri: Oneri, gerekce: str) -> tuple[str, str]:
+        """Ret gerekçesini seçmeli kontrol sorularıyla doğrular.
+
+        (son gerekçe, rapora eklenecek not) döndürür. Bir kontrol doğrulamazsa sıradaki
+        kontrole geçilir; sıradaki yoksa gerekçe "Geçerli öneri" olur.
+        """
+        if not (
             self._ayarlar.red_kontrolu
-            and gerekce in KONTROL_SORULARI
             and len(oneri.onerilen_durum.strip()) >= KONTROL_EN_KISA_ONERILEN
-        )
+        ):
+            return gerekce, ""
+        notlar = []
+        while gerekce in KONTROLLER:
+            cevap = self._sor(
+                [
+                    {"role": "system", "content": KONTROL_SISTEMI},
+                    {"role": "user", "content": kontrol_mesaji(oneri, gerekce)},
+                ],
+                kontrol_semasi(gerekce),
+            )
+            if cevap["cevap"] == KONTROLLER[gerekce].dogrulayan:
+                break
+            notlar.append(f'"{gerekce}" doğrulanmadı ({cevap["cevap"]}: {cevap["aciklama"]})')
+            gerekce = KONTROLLER[gerekce].sonraki or "Geçerli öneri"
+        if not notlar:
+            return gerekce, ""
+        sonuc = "karar Öneri yapıldı" if GEREKCELER[gerekce] == ONERI else f'gerekçe "{gerekce}" oldu'
+        return gerekce, f" (kontrol: {'; '.join(notlar)}; {sonuc})"
 
     def _sor(self, mesajlar: list[dict], sema: dict) -> dict:
         try:

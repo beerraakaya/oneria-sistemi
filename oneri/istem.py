@@ -4,6 +4,8 @@ Değerlendirme iki adımda yapılır: önce karar (gerekçe seçimi), sonra kara
 Karar belli olunca model eksik aramak yerine ekip gibi önce faydayı görüp metni yazıyor.
 """
 
+from dataclasses import dataclass
+
 from .excel import ONERI, ONERI_DEGIL, Oneri
 from .hafiza import Ornek
 
@@ -43,21 +45,51 @@ def metin_semasi(onay: str) -> dict:
     }
 
 
-# KARAR adımında model bu gerekçeleri, önerilen şey mevcut yöntemi iyileştirse bile sık
-# seçiyor. Bu gerekçeler seçilince, örnek ve kural göstermeden tek bir soru sorulur;
-# cevap "Hayır" ise karar "Öneri"ye çevrilir.
-KONTROL_SORULARI = {
-    "Rutin iş": (
-        "Önerilen şey yalnızca bozulan, aşınan, kirlenen ya da eksilen bir şeyi eski hâline "
-        "getirmekten mi ibaret (tamir, temizlik, aynısıyla yenileme, periyodik kontrol veya "
-        "kalibrasyon, zaten var olan bir kurala uyulması)? Mevcut yöntemi, parametreyi, "
-        "malzemeyi, ekipmanı ya da tasarımı değiştirerek daha iyi hâle getiriyor ya da yeni bir "
-        "şey yapıyorsa cevap Hayır'dır."
+# KARAR adımında model ret gerekçelerini, önerilen şey mevcut yöntemi iyileştirse bile sık
+# seçiyor. Bu gerekçeler seçilince, örnek ve kural göstermeden seçmeli bir soru sorulur.
+# Model uzun Evet/Hayır sorularında "Evet" demeye yatkın; seçenekler arasından seçmek daha
+# isabetli. Cevap gerekçeyi doğrulamazsa karar "Öneri" olur ya da sıradaki kontrole geçilir.
+@dataclass(frozen=True)
+class Kontrol:
+    soru: str
+    secenekler: dict[str, str]  # harf -> açıklama
+    dogrulayan: str  # gerekçeyi doğrulayan seçenek
+    # Doğrulanmazsa sorulacak başka bir gerekçenin kontrolü; yoksa karar "Öneri" olur.
+    sonraki: str | None = None
+
+
+KONTROLLER = {
+    "Somut çözüm yok": Kontrol(
+        soru="Önerilen durumda ne yapılması istendiği yazıyor mu?",
+        secenekler={
+            "A": "Evet: yapılması istenen somut bir iş var (alınacak, yapılacak, değiştirilecek, "
+            "eklenecek ya da kaldırılacak bir şey)",
+            "B": "Hayır: önerilen durum boş, yalnızca sorunu tekrar ediyor ya da ne yapılacağı belli değil",
+        },
+        dogrulayan="B",
+        sonraki="Rutin iş",
     ),
-    "Politika/sosyal hak talebi": (
-        "Önerinin asıl faydası çalışanların kişisel yararına olan bir hak, imkân, ikram ya da "
-        "hediye mi (ödül, prim, izin, yemek, içecek, servis, sosyal etkinlik, kişisel eşya)? "
-        "Asıl faydası işe, sürece, maliyete, çevreye, kaliteye ya da güvenliğe ise cevap Hayır'dır."
+    "Rutin iş": Kontrol(
+        soru="Önerilen şey en çok hangisine uyuyor?",
+        secenekler={
+            "A": "Bozulan, aşınan ya da kirlenen bir şeyi eski hâline getirmek: tamir, temizlik, "
+            "aynısıyla değiştirme, periyodik bakım, kontrol ya da kalibrasyon",
+            "B": "Yeni bir ekipman, aparat, alet, ölçüm aracı ya da malzeme almak veya yapmak",
+            "C": "Üretim yöntemini, makine ayarını ya da süreci değiştirmek; makineye ya da "
+            "sisteme yeni bir özellik eklemek",
+            "D": "Hiçbiri",
+        },
+        dogrulayan="A",
+    ),
+    "Politika/sosyal hak talebi": Kontrol(
+        soru="Önerinin asıl faydası kime ya da neye?",
+        secenekler={
+            "A": "Çalışanların kişisel yararına: hak, imkân, ikram, hediye, ödül, izin, servis "
+            "ya da sosyal etkinlik",
+            "B": "İşe, sürece, güvenliğe, kaliteye, maliyete ya da çevreye",
+            "C": "Hiçbiri",
+        },
+        dogrulayan="A",
     ),
 }
 
@@ -66,13 +98,13 @@ KONTROL_SORULARI = {
 KONTROL_EN_KISA_ONERILEN = 10
 
 
-def kontrol_semasi() -> dict:
-    """Kontrol sorusu. Model önce kısa gerekçesini yazar, sonra Evet/Hayır der."""
+def kontrol_semasi(gerekce: str) -> dict:
+    """Kontrol sorusu. Model önce kısa gerekçesini yazar, sonra bir seçenek seçer."""
     return {
         "type": "object",
         "properties": {
             "aciklama": {"type": "string"},
-            "cevap": {"type": "string", "enum": ["Evet", "Hayır"]},
+            "cevap": {"type": "string", "enum": list(KONTROLLER[gerekce].secenekler)},
         },
         "required": ["aciklama", "cevap"],
     }
@@ -81,19 +113,23 @@ def kontrol_semasi() -> dict:
 KONTROL_SISTEMI = (
     "Sen bir fabrikanın öneri sistemi ekibine yardım eden bir asistansın. Bir çalışan önerisi "
     "hakkındaki soruyu yalnızca önerilen duruma bakarak cevapla. Önce tek cümleyle açıkla, "
-    'sonra "Evet" ya da "Hayır" de. Cevabı yalnızca istenen JSON biçiminde ver.'
+    "sonra seçeneklerden birinin harfini seç. Cevabı yalnızca istenen JSON biçiminde ver."
 )
 
 
 def kontrol_mesaji(yeni: Oneri, gerekce: str) -> str:
+    kontrol = KONTROLLER[gerekce]
     return "\n".join(
         (
             "ÖNERİ",
             _oneri_blogu(yeni),
             "",
-            f"SORU: {KONTROL_SORULARI[gerekce]}",
+            f"SORU: {kontrol.soru}",
+            *(f"{harf}) {aciklama}" for harf, aciklama in kontrol.secenekler.items()),
             "",
-            'Cevabı JSON olarak ver: {"aciklama": "...", "cevap": "Evet" ya da "Hayır"}',
+            'Cevabı JSON olarak ver: {"aciklama": "...", "cevap": "'
+            + '" ya da "'.join(kontrol.secenekler)
+            + '"}',
         )
     )
 
