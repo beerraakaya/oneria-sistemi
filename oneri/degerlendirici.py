@@ -81,10 +81,19 @@ class Degerlendirici:
         # Gerekçe belliyse metin de o gerekçeyle yazılır; model başka gerekçeye kaymaz.
         sema = metin_semasi(onay, gerekce)
         cevap = self._sor(mesajlar, sema)
-        if yabanci_yazi(cevap["degerlendirme"]):
+        for deneme in range(1, 3):
+            if not yabanci_yazi(cevap["degerlendirme"]):
+                break
             # Qwen bazen metnin ortasında Çinceye geçiyor. Bozuk cevap sohbete eklenmeden,
-            # biraz rastgelelikle baştan istenir.
-            cevap = self._sor_bir_kez(mesajlar, sema, self._ayarlar.sicaklik + 0.3)
+            # açık bir Türkçe uyarısıyla ve biraz rastgelelikle baştan istenir (en fazla 2 kez).
+            uyarili = mesajlar[:-1] + [
+                {
+                    "role": "user",
+                    "content": mesajlar[-1]["content"]
+                    + "\n\nÖNEMLİ: Değerlendirmeyi yalnızca Türkçe yaz; başka dil ya da alfabe kullanma.",
+                }
+            ]
+            cevap = self._sor_bir_kez(uyarili, sema, self._ayarlar.sicaklik + 0.3 * deneme)
         uygunsuz = uygunsuz_ifadeler(cevap["degerlendirme"])
         celiski = karar_celiskileri(onay, cevap["degerlendirme"])
         if uygunsuz or celiski:

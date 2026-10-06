@@ -355,16 +355,20 @@ def test_cince_karisan_metin_bastan_istenir(asistan, sahte_ollama):
     taslak = asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
 
     _, ilk, ikinci = sahte_ollama.sohbetler()
-    # Bozuk cevap sohbete eklenmez; aynı istek daha yüksek sıcaklıkla tekrarlanır.
-    assert ikinci["messages"] == ilk["messages"]
+    # Bozuk cevap sohbete eklenmez; aynı istek Türkçe uyarısıyla, daha yüksek sıcaklıkla tekrarlanır.
+    assert ikinci["messages"][0] == ilk["messages"][0]
+    assert ikinci["messages"][1]["content"].startswith(ilk["messages"][1]["content"])
+    assert "yalnızca Türkçe yaz" in ikinci["messages"][1]["content"]
     assert ikinci["options"]["temperature"] == pytest.approx(0.3)
     assert taslak.degerlendirme == "Ziyaretçi sürecini kolaylaştırabilir. Maliyet belirlenmelidir."
 
 
-def test_cince_surerse_taslak_reddedilir(asistan, sahte_ollama):
+def test_cince_surerse_iki_kez_daha_denenip_taslak_reddedilir(asistan, sahte_ollama):
     sahte_ollama.sohbet_cevabi = [_karar("Geçerli öneri"), _metin("Geçerli öneri", "Seti接待时.")]
     with pytest.raises(GecersizCevap, match="Türkçe olmayan"):
         asistan.degerlendirici.degerlendir(_oneri(asistan, 9))
+    sicakliklar = [s["options"]["temperature"] for s in sahte_ollama.sohbetler()[1:]]
+    assert sicakliklar == pytest.approx([0.0, 0.3, 0.6])
 
 
 def test_kontrolde_guvenlik_secenegi_isg_gerekcesine_gecer(asistan, sahte_ollama):

@@ -142,7 +142,7 @@ def kontrol_semasi(gerekce: str) -> dict:
 KONTROL_SISTEMI = (
     "Sen bir fabrikanın öneri sistemi ekibine yardım eden bir asistansın. Bir çalışan önerisi "
     "hakkındaki soruyu yalnızca önerilen duruma bakarak cevapla. Önce tek cümleyle açıkla, "
-    "sonra seçeneklerden birinin harfini seç. Cevabı yalnızca istenen JSON biçiminde ver."
+    "sonra seçeneklerden birinin harfini seç. Cevabı yalnızca istenen JSON biçiminde ve Türkçe ver."
 )
 
 
@@ -171,7 +171,7 @@ Bir öneri iki adımda değerlendirilir:
 - KARAR adımında "Önerilen durum"un ne yapmayı önerdiğini tek cümleyle yazarsın (onerilen_sey) ve aşağıdaki kurallara göre gerekçeyi seçersin: {", ".join(f'"{g}"' for g in GEREKCELER)}. Karar mevcut duruma değil, önerilen şeye göre verilir. "Geçerli öneri" dışındaki her gerekçe "{ONERI_DEGIL}" demektir.
 - METİN adımında karar bellidir. Ekibin değerlendirmeleri gibi sade ve kısa, iki cümlelik bir değerlendirme yazarsın. "{ONERI}" ise önce önerinin sağlayabileceği faydayı, sonra ilerlemesi için gereken en fazla 2-3 şeyi yaz. "{ONERI_DEGIL}" ise nedenini ve öneriye dönüşmesi için ne gerektiğini ya da konuyu hangi birimin ele alması gerektiğini yaz. Önerinin kendi içeriğinden (makine, malzeme, süreç adı) somut olarak bahset. "Ayrıca" ile üçüncü bir cümle ekleme; "Öneri niteliğindedir" gibi genel bir girişle başlama.
 
-Cevabı yalnızca istenen JSON biçiminde ver.
+Cevabı yalnızca istenen JSON biçiminde ve yalnızca Türkçe ver.
 
 KURALLAR
 
