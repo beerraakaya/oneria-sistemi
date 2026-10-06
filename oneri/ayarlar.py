@@ -9,8 +9,9 @@ from pathlib import Path
 class Ayarlar:
     excel_yolu: Path = Path("veri/oneri.xlsx")
     sayfa_adi: str = "Genel Tablo"
-    # Sadece bu fabrikanın satırları okunur ve doldurulur.
-    fabrika: str = "Denizli"
+    # Yalnızca bu fabrikaların satırları okunur ve doldurulur; listede olmayanlara dokunulmaz.
+    # İki fabrikanın önerilerini aynı ekip, aynı kurallarla değerlendirir.
+    fabrikalar: tuple[str, ...] = ("Denizli", "Tuzla")
     kurallar_yolu: Path = Path("kurallar.md")
     # Hafıza dosyası ve raporlar buraya yazılır; git'e gönderilmez.
     veri_klasoru: Path = Path("veri")
@@ -84,6 +85,11 @@ def ayarlari_yukle(yol: Path) -> Ayarlar:
     with yol.open("rb") as dosya:
         degerler = tomllib.load(dosya)
 
+    if "fabrika" in degerler:  # eski ayar dosyaları: fabrika = 'Denizli'
+        degerler["fabrikalar"] = [degerler.pop("fabrika")]
+    if isinstance(degerler.get("fabrikalar"), str):
+        degerler["fabrikalar"] = [degerler["fabrikalar"]]
+
     bilinen = {alan.name for alan in fields(Ayarlar)}
     bilinmeyen = sorted(set(degerler) - bilinen)
     if bilinmeyen:
@@ -92,4 +98,6 @@ def ayarlari_yukle(yol: Path) -> Ayarlar:
     for ad, deger in degerler.items():
         if isinstance(getattr(varsayilan, ad), Path):
             degerler[ad] = Path(deger)
+        elif isinstance(getattr(varsayilan, ad), tuple):
+            degerler[ad] = tuple(deger)
     return replace(varsayilan, **degerler)

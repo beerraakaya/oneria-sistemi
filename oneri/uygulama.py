@@ -54,11 +54,12 @@ def _graph_kaynagi(ayarlar: Ayarlar) -> SharePointExcel:
 
 
 def fabrika_onerileri(ayarlar: Ayarlar) -> list[Oneri]:
-    """Excel'deki önerilerden yalnızca ayarlardaki fabrikaya ait olanlar."""
+    """Excel'deki önerilerden yalnızca ayarlardaki fabrikalara ait olanlar."""
+    fabrikalar = {f.casefold() for f in ayarlar.fabrikalar}
     return [
         oneri
         for oneri in onerileri_oku(ayarlar.excel_yolu, ayarlar.sayfa_adi)
-        if oneri.fabrika.casefold() == ayarlar.fabrika.casefold()
+        if oneri.fabrika.casefold() in fabrikalar
     ]
 
 

@@ -7,7 +7,7 @@ Yapay zekâ modeli (Ollama ile Qwen) şirket bilgisayarında çalışır; öneri
 ## Aşamalar
 
 1. **Kör test (tamamlandı):** ekibin değerlendirdiği öneriler, cevapları gizlenerek yapay zekâya yeniden değerlendirildi. Son testte ekiple aynı karar oranı %74 (hedef %70).
-2. **Canlı kullanım:** program tek bir şirket bilgisayarında çalışır, SharePoint'teki Excel'de bekleyen Denizli önerilerini doldurur. Ekip Excel'i her zamanki gibi açıp taslakları kontrol eder. Aşağıdaki "Canlı kullanım" bölümüne bakın.
+2. **Canlı kullanım:** program tek bir şirket bilgisayarında çalışır, SharePoint'teki Excel'de bekleyen Denizli ve Tuzla önerilerini doldurur. Ekip Excel'i her zamanki gibi açıp taslakları kontrol eder. Aşağıdaki "Canlı kullanım" bölümüne bakın.
 
 ## Kurulum (Windows)
 
@@ -48,6 +48,7 @@ Kör testte kararın nasıl verileceği `--yontem` ile seçilir:
 ```
 python -m oneri kor-test --yontem komsu
 python -m oneri kor-test --yontem karma
+python -m oneri kor-test --fabrika Tuzla --adet 30   # yalnızca Tuzla'nın en yeni 30 önerisi
 ```
 
 Kör test raporu `veri\kor_test_<yöntem>_<tarih>.xlsx` dosyasına yazılır:
@@ -59,7 +60,7 @@ Ekran kartı olmayan bir bilgisayarda her öneri birkaç dakika sürebilir. Test
 
 ## Nasıl çalışır?
 
-1. Excel'den yalnızca **Denizli** satırları okunur; Tuzla satırlarına dokunulmaz. Kişi adı sütunları hiç okunmaz.
+1. Excel'den yalnızca ayarlardaki fabrikaların (varsayılan: **Denizli ve Tuzla**) satırları okunur; diğer satırlara dokunulmaz. İki fabrikanın önerilerini aynı ekip, aynı kurallarla değerlendirir; örnek havuzunda iki fabrikanın ekip değerlendirmeleri birlikte bulunur. Kişi adı sütunları hiç okunmaz.
 2. Kararı ve değerlendirmesi olan öneriler **kurumsal hafızayı** oluşturur. "deneme" gibi 40 karakterden kısa değerlendirmeler test kaydı sayılıp dışarıda bırakılır.
 3. Hafızadaki metinler ikiye ayrılır: ilk cümlesi en az 3 kayıtta aynen geçenler **eski kalıp** metinlerdir, diğerleri **yeni tarzdır**.
 4. Yeni bir öneri geldiğinde `bge-m3` ile anlamca en benzer eski öneriler bulunur. Modele yalnızca **ekibin kendi yazdığı** (yeni tarz) en benzer 8 değerlendirme, kararıyla birlikte gösterilir; böylece model ekibin benzer önerilerde neye bakıp ne dediğini görür.
@@ -83,7 +84,7 @@ Ekran kartı olmayan bir bilgisayarda her öneri birkaç dakika sürebilir. Test
    - 7 gün boyunca değiştirilmediyse **onaylandı** sayılır.
    - Durum'un sonradan Tamamlandı ya da Uygulanamaz yapılması düzeltme sayılmaz; bu, sürecin ilerlemesidir.
    - Her iki durumda da hücrelerin sarı rengi kaldırılır.
-3. **Değerlendirme, Onay Durumu ve Durum hücrelerinin üçü de boş olan Denizli satırlarını doldurur.** Yazdığı hücreleri açık sarıya boyar; ekip sarı hücrelerin henüz kontrol edilmemiş yapay zekâ taslakları olduğunu anlar.
+3. **Değerlendirme, Onay Durumu ve Durum hücrelerinin üçü de boş olan Denizli ve Tuzla satırlarını doldurur.** Yazdığı hücreleri açık sarıya boyar; ekip sarı hücrelerin henüz kontrol edilmemiş yapay zekâ taslakları olduğunu anlar.
 
 Güvenlik kuralları:
 

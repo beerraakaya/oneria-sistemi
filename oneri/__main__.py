@@ -30,7 +30,9 @@ def kontrol(ayarlar: Ayarlar, _args) -> int:
     ornekler = [o for o in oneriler if ornek_alinabilir_mi(o, ayarlar.en_kisa_degerlendirme)]
     ozgun = ozgun_satirlar(ornekler, ayarlar.kalip_tekrar_esigi)
     bekleyen = [o.satir for o in oneriler if o.bekliyor]
-    print(f"  {ayarlar.fabrika} önerisi: {len(oneriler)}")
+    for fabrika in ayarlar.fabrikalar:
+        adet = sum(1 for o in oneriler if o.fabrika.casefold() == fabrika.casefold())
+        print(f"  {fabrika} önerisi: {adet}")
     print(
         f"  Örnek alınabilecek değerlendirme: {len(ornekler)}"
         f" (yeni tarzda: {len(ozgun)}, eski kalıp: {len(ornekler) - len(ozgun)})"
@@ -75,6 +77,8 @@ def kor_test(ayarlar: Ayarlar, args) -> int:
             (o.oneri for o in asistan.hafiza.ornekler if o.ozgun and o.oneri.satir not in kendi),
             key=lambda o: o.satir,
         )
+        if args.fabrika:
+            test = [o for o in test if o.fabrika.casefold() == args.fabrika.casefold()]
         if args.adet:
             test = test[-args.adet :]
         if args.yontem == "komsu":
@@ -116,7 +120,9 @@ def degerlendir(ayarlar: Ayarlar, args) -> int:
     try:
         oneri = next((o for o in asistan.oneriler if o.satir == args.satir), None)
         if oneri is None:
-            raise ExcelHatasi(f"{args.satir}. satırda {ayarlar.fabrika} önerisi yok.")
+            raise ExcelHatasi(
+                f"{args.satir}. satırda {' ya da '.join(ayarlar.fabrikalar)} önerisi yok."
+            )
         # Satır zaten değerlendirilmişse kendi cevabını örnek olarak görmesin.
         taslak = asistan.degerlendirici.degerlendir(oneri, haric_satir=oneri.satir)
     finally:
@@ -234,6 +240,7 @@ def main(argv: list[str] | None = None) -> int:
     komutlar.add_parser("kontrol", help="Excel'i, kuralları ve Ollama modellerini kontrol eder")
     kor = komutlar.add_parser("kor-test", help="cevabı bilinen önerilerle kör test yapıp rapor üretir")
     kor.add_argument("--adet", type=int, help="sadece en yeni N öneriyle dene")
+    kor.add_argument("--fabrika", help="sadece bu fabrikanın önerileriyle dene, örn. Tuzla")
     kor.add_argument(
         "--yontem",
         choices=["model", "komsu", "karma"],

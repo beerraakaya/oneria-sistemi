@@ -60,3 +60,14 @@ def test_eksik_sutun_icin_anlasilir_hata(tmp_path):
 def test_olmayan_dosya_icin_anlasilir_hata(tmp_path):
     with pytest.raises(ExcelHatasi, match="bulunamadı"):
         onerileri_oku(tmp_path / "yok.xlsx", "Genel Tablo")
+
+
+def test_fabrika_ayari(tmp_path):
+    from oneri.ayarlar import Ayarlar, ayarlari_yukle
+
+    assert Ayarlar().fabrikalar == ("Denizli", "Tuzla")
+    yol = tmp_path / "a.toml"
+    yol.write_text("fabrikalar = ['Tuzla']\n", encoding="utf-8")
+    assert ayarlari_yukle(yol).fabrikalar == ("Tuzla",)
+    yol.write_text("fabrika = 'Denizli'\n", encoding="utf-8")  # eski ayar adı
+    assert ayarlari_yukle(yol).fabrikalar == ("Denizli",)

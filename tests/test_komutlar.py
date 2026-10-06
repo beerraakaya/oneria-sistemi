@@ -99,9 +99,30 @@ def test_degerlendir_bekleyen_satir(ayar_dosyasi, capsys):
     assert "Ekibin yazdığı" not in cikti
 
 
-def test_degerlendir_baska_fabrikanin_satirini_reddeder(ayar_dosyasi, capsys):
+def test_degerlendir_tuzla_satirini_da_degerlendirir(ayar_dosyasi, capsys):
+    assert main(["--ayarlar", str(ayar_dosyasi), "degerlendir", "5"]) == 0
+    assert "Onay Durumu  : Öneri" in capsys.readouterr().out
+
+
+def test_listede_olmayan_fabrikanin_satirini_reddeder(ayar_dosyasi, capsys):
+    # Eski ayar dosyalarındaki "fabrika = '...'" satırı da çalışmaya devam eder.
+    with ayar_dosyasi.open("a", encoding="utf-8") as dosya:
+        dosya.write("\nfabrika = 'Denizli'\n")
     assert main(["--ayarlar", str(ayar_dosyasi), "degerlendir", "5"]) == 1
     assert "5. satırda Denizli önerisi yok" in capsys.readouterr().err
+
+
+def test_kontrol_her_fabrikayi_ayri_sayar(ayar_dosyasi, capsys):
+    assert main(["--ayarlar", str(ayar_dosyasi), "kontrol"]) == 0
+    cikti = capsys.readouterr().out
+    assert "Denizli önerisi: 7" in cikti and "Tuzla önerisi: 1" in cikti
+
+
+def test_kor_test_tek_fabrikayla_yapilabilir(ayar_dosyasi, sahte_ollama, capsys):
+    assert main(["--ayarlar", str(ayar_dosyasi), "kor-test", "--fabrika", "Tuzla"]) == 0
+    # Uydurma veride Tuzla'nın örnek alınabilecek değerlendirmesi yok.
+    assert "0 öneri değerlendirilecek." in capsys.readouterr().out
+    assert sahte_ollama.sohbetler() == []
 
 
 def test_ollama_kapaliyken_anlasilir_hata(tmp_path, ayarlar, capsys):

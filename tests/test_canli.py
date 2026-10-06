@@ -220,3 +220,27 @@ def test_calisan_programin_kilidine_dokunulmaz(tmp_path):
         with tek_calisma(tmp_path):
             pass
     assert (tmp_path / "calisiyor.kilit").exists()
+
+
+def _satir_ekle(yol, fabrika, konu, mevcut, onerilen):
+    kitap = openpyxl.load_workbook(yol)
+    kitap["Genel Tablo"].append(
+        [datetime(2026, 10, 1), fabrika, 1, "Test Kişi", "Üretim", None, None, konu, mevcut, onerilen]
+    )
+    satir = kitap["Genel Tablo"].max_row
+    kitap.save(yol)
+    return satir
+
+
+def test_tuzla_onerisi_de_doldurulur_listede_olmayan_fabrikaya_dokunulmaz(ayarlar, sahte_ollama, depo):
+    tuzla = _satir_ekle(ayarlar.excel_yolu, "Tuzla", "Enerji Verimliliği",
+                        "Kompresör odası aydınlatması gün boyu açık.", "Hareket sensörlü aydınlatma kullanılması.")
+    diger = _satir_ekle(ayarlar.excel_yolu, "Bursa", "Enerji Verimliliği",
+                        "Depo ısıtması hafta sonu açık.", "Zaman ayarlı termostat kullanılması.")
+
+    ozet, cikti = _calistir(ayarlar, sahte_ollama, depo)
+
+    assert ozet.yazilan == 2  # Denizli satır 9 ve Tuzla satırı
+    assert f"Satır {tuzla}" in cikti
+    assert _hucreler(ayarlar.excel_yolu, tuzla)[1].value == "Öneri"
+    assert [h.value for h in _hucreler(ayarlar.excel_yolu, diger)] == [None, None, None]
