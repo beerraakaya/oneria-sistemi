@@ -175,12 +175,12 @@ Program `calistir.bat` ile çalışır ve çıktılarını `veri\gunluk.log` dos
 **Mesai boyunca her 30 dakikada bir** (proje klasörünün yolunu kendi bilgisayarınıza göre değiştirin):
 
 ```
-schtasks /Create /TN "Oneri Asistani" /TR "\"C:\oneri-sistemi\calistir.bat\"" /SC DAILY /ST 08:00 /RI 30 /DU 10:00 /F
+schtasks /Create /TN "Oneri Asistani" /TR "\"C:\oneria-sistemi\calistir.bat\"" /SC DAILY /ST 08:00 /RI 30 /DU 10:00 /F
 ```
 
 **Bilgisayar açılınca bir kez:** `Win + R` > `shell:startup` yazın. Açılan klasöre `acilista_calistir.bat` dosyasının kısayolunu koyun. Bu dosya, Ollama ve Excel hazır olsun diye 2 dakika bekleyip programı çalıştırır.
 
-**Pencere açılmadan çalışsın istenirse:** Görev Zamanlayıcı'da `calistir.bat` yerine `calistir_gizli.vbs`, Başlangıç klasöründe `acilista_calistir.bat` yerine `acilista_gizli.vbs` kullanılır:
+**Pencere açılmadan çalışsın istenirse:** Görev Zamanlayıcı'da `calistir.bat` yerine `calistir_gizli.vbs`, Başlangıç klasöründe `acilista_calistir.bat` yerine `acilista_gizli.vbs` kullanılır. Görev Zamanlayıcı'dan pencere açmadan çalışan betikler güvenlik yazılımlarına şüpheli görünebilir; şirket bilgisayarında bu yola geçmeden önce IT'ye haber verin:
 
 ```
 schtasks /Change /TN "Oneri Asistani" /TR "wscript.exe C:\oneria-sistemi\calistir_gizli.vbs"
